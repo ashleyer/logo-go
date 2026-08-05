@@ -1,0 +1,84 @@
+/* Custom CSS Animation Keyframes for Logo Motion Stage */
+body {
+  margin: 0;
+  padding: 0;
+}
+
+@keyframes shine-sweep {
+  0% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
+  20% { opacity: 0.8; }
+  80% { opacity: 0.8; }
+  100% { transform: translateX(250%) skewX(-25deg); opacity: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.3)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 30px rgba(16, 185, 129, 0.75)); }
+}
+
+@keyframes float-wave {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-10px) rotate(-1.5deg); }
+  75% { transform: translateY(8px) rotate(1.5deg); }
+}
+
+@keyframes orbit-tilt {
+  0% { transform: perspective(800px) rotateY(0deg) rotateX(4deg); }
+  50% { transform: perspective(800px) rotateY(180deg) rotateX(-4deg); }
+  100% { transform: perspective(800px) rotateY(360deg) rotateX(4deg); }
+}
+
+@keyframes neon-surge {
+  0%, 100% { filter: drop-shadow(0 0 8px #10b981) brightness(1); }
+  50% { filter: drop-shadow(0 0 25px #059669) drop-shadow(0 0 40px #34d399) brightness(1.15); }
+}
+
+@keyframes glitch-flicker {
+  0%, 100% { transform: translate(0); filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.4)); }
+  20% { transform: translate(-2px, 2px); filter: drop-shadow(-3px 0 #ef4444); }
+  40% { transform: translate(2px, -1px); filter: drop-shadow(3px 0 #3b82f6); }
+  60% { transform: translate(-1px, -2px); filter: drop-shadow(-2px 0 #10b981); }
+  80% { transform: translate(1px, 1px); }
+}
+
+@keyframes zoom-spin {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.08) rotate(4deg); filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.6)); }
+}
+
+@keyframes holo-beam {
+  0%, 100% { opacity: 0.9; filter: drop-shadow(0 0 10px #06b6d4) hue-rotate(0deg); }
+  50% { opacity: 1; filter: drop-shadow(0 0 25px #3b82f6) hue-rotate(90deg); }
+}
+
+.animate-shine-sweep {
+  animation: shine-sweep 2.5s infinite linear;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
+.animate-float-wave {
+  animation: float-wave 4s infinite ease-in-out;
+}
+
+.animate-orbit-tilt {
+  animation: orbit-tilt 8s infinite linear;
+}
+
+.animate-neon-surge {
+  animation: neon-surge 2s infinite ease-in-out;
+}
+
+.animate-glitch-flicker {
+  animation: glitch-flicker 1.5s infinite ease-in-out;
+}
+
+.animate-zoom-spin {
+  animation: zoom-spin 4s infinite ease-in-out;
+}
+
+.animate-holo-beam {
+  animation: holo-beam 3s infinite ease-in-out;
+}

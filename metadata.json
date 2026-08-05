@@ -1,0 +1,6 @@
+{
+  "name": "Logo-go Studio",
+  "description": "Describe your brand or upload an image/sketch to generate & enhance a unique logo with video animations and color theory palettes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
