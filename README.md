@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/brand-logo.svg" width="360" alt="Logo-go Studio Brand Emblem & Logo" />
+  <img src="public/brand-logo.svg" width="360" alt="Logo-go Studio Brand Emblem & Logo" />
 </p>
 
 # 🎨 Logo-go Studio — AI Vector Emblem & Motion Video Generator
@@ -28,7 +28,7 @@ Experience the full live application directly in your browser using any of the l
 ## 🎬 Application Demo Showcase
 
 <p align="center">
-  <img src="./public/demo-preview.svg" width="100%" alt="Logo-go Studio Interactive Demo Showcase" />
+  <img src="public/demo-preview.svg" width="100%" alt="Logo-go Studio Interactive Demo Showcase" />
 </p>
 
 ```text
