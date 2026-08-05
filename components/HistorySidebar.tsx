@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { HistoryItem, LOGO_STYLES } from '../types';
 import { CloseIcon, TrashIcon, VideoIcon, ShareIcon, HistoryIcon, MaximizeIcon, MinimizeIcon } from './icons';
@@ -29,6 +29,29 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   const [shareItem, setShareItem] = useState<HistoryItem | null | undefined>(undefined); 
   // undefined = share modal closed, null = share full gallery, HistoryItem = share specific item
   const [previewVideoItem, setPreviewVideoItem] = useState<HistoryItem | null>(null);
+
+  // Lock body scrolling when gallery is open so page behind doesn't jump
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const videoCount = items.filter((item) => !!item.video).length;
 
