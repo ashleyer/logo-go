@@ -11,7 +11,7 @@
 [![Gemini API](https://img.shields.io/badge/Google%20Gemini-3.6%20Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
 [![Veo Video](https://img.shields.io/badge/Google%20Veo-3.1%20HD-8E24AA?style=for-the-badge&logo=google)](https://deepmind.google/technologies/veo/)
 
-> **Logo-go Studio** is an AI emblem, vector design, and high-definition motion video generation platform built with React, Vite, and Google Gemini AI. Transform structured brand vision prompts or reference images into professional vector logos, complete with color palette tuning, 6 interactive CSS motion physics presets, 16:9 HD video generation via Google Veo, and a 25-variation gallery container.
+> **Logo-go Studio** is an AI emblem, vector design, and high-definition motion video generation platform built with React, Vite, and Google Gemini AI. Transform structured brand vision prompts or reference images into professional vector logos, complete with color palette tuning, 6 interactive CSS motion physics presets, 16:9 HD video generation via Google Veo, a full-page expandable session gallery with enlarged cards, and a direct asset download & sharing suite.
 
 ---
 
@@ -92,20 +92,14 @@ Experience the full live application directly in your browser using any of the l
 - **Google Veo 2.0 & Canvas Motion Engine**: Renders high-definition 16:9 MP4 video animations of your emblem. Fully backed by local canvas video recording fallback to guarantee video creation on all devices.
 - **Gallery Video Sync**: All generated videos automatically link to their respective emblems in the Session Creations Gallery for persistent playback and sharing.
 
-### 4. 🎨 Session Creations Gallery, Individual & Multi-Platform Sharing
+### 4. 🎨 Session Creations Gallery, Full-Page View & Asset Export Suite
 - **IndexedDB Persistent Storage**: Automatically saves all generated logos, color palettes, and motion videos across browser sessions.
+- **Enlarged Card & List Gallery**: High-visibility thumbnail cards with crisp typography, color palette swatches, and active badges.
+- **Full-Page Expandable Gallery Mode**: Toggle between side-drawer overlay and a full-page multi-column responsive grid view (`2-6 columns`).
+- **Direct Asset Downloads**: Download logo images (SVG/PNG), Veo HD motion videos (MP4), structured design spec metadata (JSON), or batch-export the entire session gallery.
 - **Gallery Filter Tabs**: Seamlessly switch between **All Creations**, **Logos Only**, and **Videos & Motion**.
 - **Interactive Video Player Popup**: Watch video creations directly inside the gallery with full playback controls.
-- **Multi-Platform Share Modal**: Share individual creations or the whole gallery via 1-click integrations for:
-  - 💬 **SMS / Text Message**
-  - 📋 **Copy Direct Link / Image Data**
-  - ✉️ **Gmail & Email**
-  - 🔵 **Facebook**
-  - 📸 **Instagram**
-  - 🪶 **X / Twitter**
-  - 🟢 **WhatsApp**
-  - 💼 **LinkedIn**
-  - 🎵 **TikTok**
+- **Multi-Platform Share Modal**: Share individual creations or the whole gallery via 1-click integrations for SMS, WhatsApp, Gmail, X/Twitter, Facebook, LinkedIn, Instagram, and TikTok.
 - **Individual Deletion & Gallery Clear**: Delete specific creations individually or perform a complete gallery wipe with a single tap.
 
 ---
@@ -114,9 +108,9 @@ Experience the full live application directly in your browser using any of the l
 
 - **Frontend Framework**: React 18, Vite 5, TypeScript
 - **Styling**: Tailwind CSS, Framer Motion (`motion/react`)
-- **Branding & Assets**: Custom SVG Brand Emblem (`/public/brand-logo.svg`), Favicon (`/public/favicon.svg`)
-- **AI Core**: Google Gemini 2.5 Flash SDK (`@google/genai`)
-- **Video Generation**: Google Veo 2.0 Video Generation API (16:9 720p MP4)
+- **Branding & Assets**: Custom SVG Brand Emblem (`/public/brand-logo.svg`), Demo Showcase SVG (`/public/demo-preview.svg`), Favicon (`/public/favicon.svg`)
+- **AI Core**: Google Gemini 3.6 Flash SDK (`@google/genai`)
+- **Video Generation**: Google Veo 3.1 Video Generation API (16:9 720p MP4)
 - **Local Persistence**: IndexedDB (via custom promise-based wrapper)
 - **Icons & Typography**: Lucide React, Space Grotesk / Plus Jakarta Sans
 
@@ -133,7 +127,7 @@ Experience the full live application directly in your browser using any of the l
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/your-username/logo-go-studio.git
+   git clone https://github.com/ashleyer/logo-go-studio.git
    cd logo-go-studio
    ```
 
@@ -167,6 +161,7 @@ Experience the full live application directly in your browser using any of the l
 logo-go-studio/
 ├── public/
 │   ├── brand-logo.svg          # Official Logo-go Studio brand emblem SVG
+│   ├── demo-preview.svg        # UI demo showcase vector illustration
 │   └── favicon.svg             # Tab favicon matching brand emblem SVG
 ├── components/
 │   ├── Header.tsx              # Top navigation bar with official brand emblem
@@ -175,11 +170,11 @@ logo-go-studio/
 │   ├── VariationsContainer.tsx # 25 Logo concept variations container grid
 │   ├── VideoGenerator.tsx      # Motion preset selector & Veo video generator wrapper
 │   ├── VideoResult.tsx         # Interactive CSS motion stage & Veo MP4 player
-│   ├── HistorySidebar.tsx      # Session Creations Gallery sidebar & video filter
-│   ├── ShareModal.tsx          # Multi-platform share dialog (SMS, WhatsApp, Gmail, Socials)
+│   ├── HistorySidebar.tsx      # Full-page expandable gallery sidebar & video filter
+│   ├── ShareModal.tsx          # Asset download suite & multi-platform share modal
 │   └── Loader.tsx              # Animated loading spinners
 ├── services/
-│   ├── geminiService.ts        # Gemini 2.5 Flash & Veo Video (16:9) API client logic
+│   ├── geminiService.ts        # Gemini 3.6 Flash & Veo 3.1 Video API client logic
 ├── utils/
 │   ├── db.ts                   # IndexedDB storage wrapper for logo history
 │   └── videoRenderer.ts        # Canvas & MediaRecorder video rendering fallback
@@ -211,8 +206,9 @@ We welcome contributions to Logo-go Studio! Please follow these guidelines:
 
 ## ✉️ Developer Contact
 
-Created with passion by **Ashley E. Romano**.
+built with 💚 in Boston by **[@ashleyer](https://github.com/ashleyer)**, 2026.
 
+- **GitHub Profile**: [https://github.com/ashleyer](https://github.com/ashleyer)
 - **Email**: [ashleye.romano@gmail.com](mailto:ashleye.romano@gmail.com)
 - **Live Application**: [Development Server](https://ais-dev-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app) | [Shared URL](https://ais-pre-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app) | [Relative Path](./)
 
