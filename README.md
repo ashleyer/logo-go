@@ -4,7 +4,6 @@
 
 # 🎨 Logo-go Studio — AI Vector Emblem & Motion Video Generator
 
-[![Live App](https://img.shields.io/badge/Live%20App-Launch%20Logo--go-059669?style=for-the-badge&logo=rocket)](https://ais-dev-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38BDF8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
@@ -12,16 +11,6 @@
 [![Veo Video](https://img.shields.io/badge/Google%20Veo-3.1%20HD-8E24AA?style=for-the-badge&logo=google)](https://deepmind.google/technologies/veo/)
 
 > **Logo-go Studio** is a full-stack AI emblem, vector design, and high-definition motion video generation platform built with React, Vite, Express, and Google Gemini AI. Transform structured brand vision prompts or reference images into professional vector logos, complete with color palette tuning, 6 interactive CSS motion physics presets, 16:9 HD video generation via Google Veo, a full-page expandable session gallery with enlarged cards, and a direct asset download & multi-platform sharing suite.
-
----
-
-## 🚀 Live Demo & Access
-
-Experience the full live application directly in your browser using any of the live access URLs:
-
-- 🟢 **[Open Live Application (Current Environment)](./)**
-- ⚡ **[Development Server URL](https://ais-dev-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app)**
-- 🌐 **[Shared Production URL](https://ais-pre-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app)**
 
 ---
 
@@ -217,7 +206,6 @@ built with 💚 in Boston by **[@ashleyer](https://github.com/ashleyer)**, 2026.
 - **GitHub Profile**: [https://github.com/ashleyer](https://github.com/ashleyer)
 - **GitHub Repository**: [https://github.com/ashleyer/logo-go](https://github.com/ashleyer/logo-go)
 - **Email**: [ashleye.romano@gmail.com](mailto:ashleye.romano@gmail.com)
-- **Live Application**: [Development Server](https://ais-dev-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app) | [Shared URL](https://ais-pre-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app) | [Relative Path](./)
 
 ---
 
