@@ -11,7 +11,7 @@
 [![Gemini API](https://img.shields.io/badge/Google%20Gemini-3.6%20Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
 [![Veo Video](https://img.shields.io/badge/Google%20Veo-3.1%20HD-8E24AA?style=for-the-badge&logo=google)](https://deepmind.google/technologies/veo/)
 
-> **Logo-go Studio** is an AI emblem, vector design, and high-definition motion video generation platform built with React, Vite, and Google Gemini AI. Transform structured brand vision prompts or reference images into professional vector logos, complete with color palette tuning, 6 interactive CSS motion physics presets, 16:9 HD video generation via Google Veo, a full-page expandable session gallery with enlarged cards, and a direct asset download & sharing suite.
+> **Logo-go Studio** is a full-stack AI emblem, vector design, and high-definition motion video generation platform built with React, Vite, Express, and Google Gemini AI. Transform structured brand vision prompts or reference images into professional vector logos, complete with color palette tuning, 6 interactive CSS motion physics presets, 16:9 HD video generation via Google Veo, a full-page expandable session gallery with enlarged cards, and a direct asset download & multi-platform sharing suite.
 
 ---
 
@@ -76,25 +76,25 @@ Experience the full live application directly in your browser using any of the l
 
 ## ✨ Key Features Breakdown
 
-### 1. ✍️ The Vision Input Engine
-- **Structured Vision Parameters**: Specify Business/Organization/Group name, person (name or initials), mission statement/goals, impression/effect/characteristics, and preferred color choices.
-- **Reference Image & Sketch Vectorizer**: Upload an existing logo, UI screenshot, inspiration image, or hand-drawn sketch (PNG, JPG, WebP, SVG) for AI vectorization and enhancement.
-- **Quick-Add Vision Builders**: One-click prompt builder tags for fast parameter input (`+ Business/Organization/Group`, `+ Person / Initials`, `+ Mission / Goals`, `+ Impression / Effect`, `+ Color Choices`).
-- **Smart Prompt Suggestions & Quota Resilience**: Real-time keyword and concept expansion powered by Gemini, backed by contextual offline fallbacks in case of network or rate-limit events.
+### 1. ✍️ Structured Vision Input Engine
+- **5-Parameter Brand Vision Prompting**: Define Business/Organization/Group name, person (name or initials), mission statement/goals, impression/effect/characteristics, and preferred color choices.
+- **Reference Image & Sketch Vectorizer**: Upload existing logos, UI screenshots, inspiration images, or hand-drawn sketches (PNG, JPG, WebP, SVG) for AI vectorization and enhancement.
+- **Quick-Add Vision Builders**: One-click prompt builder tags for instant parameter insertion (`+ Business/Organization`, `+ Person / Initials`, `+ Mission / Goals`, `+ Impression / Effect`, `+ Color Choices`).
+- **Smart Prompt Suggestions & Quota Resilience**: Real-time keyword and concept expansion powered by Gemini 3.6 Flash, backed by intelligent offline fallback engines in case of rate-limit events.
 - **Aesthetic Style Selector**: Choose from 6 specialized visual directions: *Minimalist, Modern, Abstract, Vintage, Cyberpunk,* and *Hand-drawn*.
 
 ### 2. 🗂️ 25 Logo Variations Container
-- **Batch Variation Container**: Generates 25 distinct logo concept variations across diverse graphic sub-styles in a single container grid.
-- **Instant Selection & Color Tuning**: Click any variation to inspect, apply custom color palettes, adjust dark/light mode backdrops, and test motion physics.
+- **Batch Concept Generator**: Generates 25 distinct logo concept variations across diverse graphic sub-styles in a clean, single-container responsive grid.
+- **Instant Selection & Color Tuning**: Click any variation to inspect, apply AI-suggested color palettes, adjust dark/light mode backdrops, and test motion physics.
 
-### 3. 🎬 Interactive Motion & Veo 2.0 Video Generator
+### 3. 🎬 Interactive Motion & Veo 3.1 Video Generator
 - **6 Real-Time CSS Motion Presets**: Instantly preview 3D Spin, Gentle Pulse, Dynamic Glow, Floating Orbit, Hologram Flicker, and Shimmer Light Sweep animation physics directly on the web canvas.
-- **Google Veo 2.0 & Canvas Motion Engine**: Renders high-definition 16:9 MP4 video animations of your emblem. Fully backed by local canvas video recording fallback to guarantee video creation on all devices.
-- **Gallery Video Sync**: All generated videos automatically link to their respective emblems in the Session Creations Gallery for persistent playback and sharing.
+- **Google Veo 3.1 & Canvas Motion Engine**: Renders high-definition 16:9 MP4 video animations of your emblem. Fully backed by an in-browser HTML5 canvas MediaRecorder video renderer fallback to guarantee instant video generation across all environments.
+- **Gallery Video Sync**: All generated videos automatically link to their respective emblems in the Session Creations Gallery for persistent playback, export, and sharing.
 
 ### 4. 🎨 Session Creations Gallery, Full-Page View & Asset Export Suite
-- **IndexedDB Persistent Storage**: Automatically saves all generated logos, color palettes, and motion videos across browser sessions.
-- **Enlarged Card & List Gallery**: High-visibility thumbnail cards with crisp typography, color palette swatches, and active badges.
+- **IndexedDB Persistent Storage**: Automatically saves all generated logos, color palettes, and motion videos across browser sessions using local IndexedDB key-value stores.
+- **Enlarged Card & List Gallery**: High-visibility thumbnail cards with crisp typography, color palette swatches, and active status badges.
 - **Full-Page Expandable Gallery Mode**: Toggle between side-drawer overlay and a full-page multi-column responsive grid view (`2-6 columns`).
 - **Direct Asset Downloads**: Download logo images (SVG/PNG), Veo HD motion videos (MP4), structured design spec metadata (JSON), or batch-export the entire session gallery.
 - **Gallery Filter Tabs**: Seamlessly switch between **All Creations**, **Logos Only**, and **Videos & Motion**.
@@ -107,10 +107,10 @@ Experience the full live application directly in your browser using any of the l
 ## 🛠️ Tech Stack & Architecture
 
 - **Frontend Framework**: React 18, Vite 5, TypeScript
-- **Styling**: Tailwind CSS, Framer Motion (`motion/react`)
+- **Styling**: Tailwind CSS 3.4, Framer Motion (`motion/react`)
 - **Branding & Assets**: Custom SVG Brand Emblem (`/public/brand-logo.svg`), Demo Showcase SVG (`/public/demo-preview.svg`), Favicon (`/public/favicon.svg`)
 - **AI Core**: Google Gemini 3.6 Flash SDK (`@google/genai`)
-- **Video Generation**: Google Veo 3.1 Video Generation API (16:9 720p MP4)
+- **Video Generation**: Google Veo 3.1 Video Generation API (16:9 720p MP4) & HTML5 Canvas MediaRecorder Fallback
 - **Local Persistence**: IndexedDB (via custom promise-based wrapper)
 - **Icons & Typography**: Lucide React, Space Grotesk / Plus Jakarta Sans
 
@@ -121,14 +121,14 @@ Experience the full live application directly in your browser using any of the l
 ### Prerequisites
 - Node.js 18.0 or higher
 - npm 9.0 or higher
-- A Google Gemini API Key ([Get an API key here](https://aistudio.google.com/))
+- A Google Gemini API Key ([Get an API key on Google AI Studio](https://aistudio.google.com/))
 
 ### Installation Steps
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/ashleyer/logo-go-studio.git
-   cd logo-go-studio
+   git clone https://github.com/ashleyer/logo-go.git
+   cd logo-go
    ```
 
 2. **Install Dependencies**:
@@ -153,12 +153,17 @@ Experience the full live application directly in your browser using any of the l
    npm run build
    ```
 
+6. **Start Production Server**:
+   ```bash
+   npm run start
+   ```
+
 ---
 
 ## 📂 Repository Structure
 
 ```text
-logo-go-studio/
+logo-go/
 ├── public/
 │   ├── brand-logo.svg          # Official Logo-go Studio brand emblem SVG
 │   ├── demo-preview.svg        # UI demo showcase vector illustration
@@ -172,9 +177,10 @@ logo-go-studio/
 │   ├── VideoResult.tsx         # Interactive CSS motion stage & Veo MP4 player
 │   ├── HistorySidebar.tsx      # Full-page expandable gallery sidebar & video filter
 │   ├── ShareModal.tsx          # Asset download suite & multi-platform share modal
+│   ├── LiveAssistant.tsx       # Gemini AI Live Assistant floating interface
 │   └── Loader.tsx              # Animated loading spinners
 ├── services/
-│   ├── geminiService.ts        # Gemini 3.6 Flash & Veo 3.1 Video API client logic
+│   └── geminiService.ts        # Gemini 3.6 Flash & Veo 3.1 Video API client logic
 ├── utils/
 │   ├── db.ts                   # IndexedDB storage wrapper for logo history
 │   └── videoRenderer.ts        # Canvas & MediaRecorder video rendering fallback
@@ -209,9 +215,11 @@ We welcome contributions to Logo-go Studio! Please follow these guidelines:
 built with 💚 in Boston by **[@ashleyer](https://github.com/ashleyer)**, 2026.
 
 - **GitHub Profile**: [https://github.com/ashleyer](https://github.com/ashleyer)
+- **GitHub Repository**: [https://github.com/ashleyer/logo-go](https://github.com/ashleyer/logo-go)
 - **Email**: [ashleye.romano@gmail.com](mailto:ashleye.romano@gmail.com)
 - **Live Application**: [Development Server](https://ais-dev-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app) | [Shared URL](https://ais-pre-lmno4gppu4ntjarny3pwjq-410398839749.us-west1.run.app) | [Relative Path](./)
 
 ---
 
 *© 2026 Logo-go Studio. Powered by Google Gemini AI & Veo Video Platform.*
+
