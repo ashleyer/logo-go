@@ -10,6 +10,8 @@
 [![Gemini API](https://img.shields.io/badge/Google%20Gemini-3.6%20Flash-4285F4?style=for-the-badge&logo=google)](https://ai.google.dev/)
 [![Veo Video](https://img.shields.io/badge/Google%20Veo-3.1%20HD-8E24AA?style=for-the-badge&logo=google)](https://deepmind.google/technologies/veo/)
 
+**🚀 [Live Demo — logo-go.vercel.app](https://logo-go.vercel.app/)**
+
 > **Logo-go Studio** is a full-stack AI emblem, vector design, and high-definition motion video generation platform built with React, Vite, Express, and Google Gemini AI. Transform structured brand vision prompts or reference images into professional vector logos, complete with color palette tuning, 6 interactive CSS motion physics presets, 16:9 HD video generation via Google Veo, a full-page expandable session gallery with enlarged cards, and a direct asset download & multi-platform sharing suite.
 
 ---
