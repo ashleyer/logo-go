@@ -338,7 +338,7 @@ export default function App() {
             rel="noopener noreferrer"
             className="text-slate-800 font-bold underline hover:text-emerald-700 transition-colors"
           >
-            @ashleyer
+            Ashley Romano
           </a>
           <span>, 2026</span>
         </div>
