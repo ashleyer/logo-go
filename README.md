@@ -203,7 +203,7 @@ We welcome contributions to Logo-go Studio! Please follow these guidelines:
 
 ## ✉️ Developer Contact
 
-built with 💚 in Boston by **[@ashleyer](https://github.com/ashleyer)**, 2026.
+built with 💚 in Boston by **[Ashley Romano](https://github.com/ashleyer)**, 2026.
 
 - **GitHub Profile**: [https://github.com/ashleyer](https://github.com/ashleyer)
 - **GitHub Repository**: [https://github.com/ashleyer/logo-go](https://github.com/ashleyer/logo-go)
