@@ -2,7 +2,19 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { LogoData, ColorPalette, ReferenceImage } from "../types";
 
-const API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCFJo9_Fb3hLH6r2T0WSkoWl2eUvZ9GMNE';
+export const getApiKey = (): string => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('GEMINI_API_KEY');
+    if (stored && stored.trim()) return stored.trim();
+  }
+  const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (envKey && envKey.trim() && envKey !== 'undefined') {
+    return envKey.trim();
+  }
+  return 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE';
+};
+
+const API_KEY = getApiKey();
 
 /**
  * Generates a list of prompt suggestions to enhance the user's initial idea.
@@ -10,21 +22,39 @@ const API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCFJo9_Fb3hLH6r2T0WSkoWl2eUv
 export const generatePromptSuggestions = async (prompt: string): Promise<string[]> => {
   if (!prompt.trim()) return [];
   try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 3-4 short, creative keywords, taglines, or style modifiers they could add (e.g., "Mission: 'Pioneer sustainable tech'", "Impression: sleek & confident", "Colors: Emerald & charcoal", "Person: A.R."). Return only a JSON array of strings.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.STRING
-          }
-        },
-        temperature: 0.8,
-      }
-    });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 3-4 short, creative keywords, taglines, or style modifiers they could add (e.g., "Mission: 'Pioneer sustainable tech'", "Impression: sleek & confident", "Colors: Emerald & charcoal", "Person: A.R."). Return only a JSON array of strings.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.STRING
+            }
+          },
+          temperature: 0.8,
+        }
+      });
+    } catch {
+      response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 3-4 short, creative keywords, taglines, or style modifiers they could add (e.g., "Mission: 'Pioneer sustainable tech'", "Impression: sleek & confident", "Colors: Emerald & charcoal", "Person: A.R."). Return only a JSON array of strings.`,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.STRING
+            }
+          },
+          temperature: 0.8,
+        }
+      });
+    }
 
     const jsonText = response.text.trim();
     const suggestions = JSON.parse(jsonText);
@@ -51,7 +81,8 @@ export const generateLogo = async (
   styleId?: string, 
   referenceImage?: ReferenceImage | null
 ): Promise<LogoData> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const currentKey = getApiKey();
+  const ai = new GoogleGenAI({ apiKey: currentKey });
 
   let styleInstruction = "A modern, high-quality vector-style logo";
   if (styleId === 'minimalist') {
@@ -93,17 +124,31 @@ export const generateLogo = async (
   parts.push({ text: promptText });
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-image',
-      contents: {
-        parts: parts,
-      },
-      config: {
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-image',
+        contents: {
+          parts: parts,
+        },
+        config: {
           responseModalities: [Modality.IMAGE],
-      },
-    });
+        },
+      });
+    } catch (primaryErr: any) {
+      console.warn("Primary image model (gemini-3.1-flash-image) error, trying fallback model:", primaryErr);
+      response = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite-image',
+        contents: {
+          parts: parts,
+        },
+        config: {
+          responseModalities: [Modality.IMAGE],
+        },
+      });
+    }
 
-    const part = response.candidates?.[0]?.content?.parts?.[0];
+    const part = response?.candidates?.[0]?.content?.parts?.[0];
 
     if (part?.inlineData) {
       return {
@@ -117,9 +162,13 @@ export const generateLogo = async (
     throw new Error("Failed to generate logo. The model did not return an image.");
   } catch (error: any) {
     console.error("Logo generation error:", error);
-    const errStr = JSON.stringify(error || {});
-    if (error?.status === 403 || errStr.includes('403') || errStr.includes('PERMISSION_DENIED') || error?.message?.includes('permission')) {
+    const errStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
+    const msg = (error?.message || "").toLowerCase();
+    if (error?.status === 403 || errStr.includes('403') || errStr.includes('PERMISSION_DENIED') || msg.includes('permission')) {
       throw new Error("API Permission Denied. Please ensure your Gemini API key has access to image generation models.");
+    }
+    if (error?.status === 429 || errStr.includes('429') || errStr.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') || msg.includes('prepayment') || msg.includes('depleted') || msg.includes('credit')) {
+      throw new Error("Gemini API rate limit or credits depleted. Please verify your billing/credits in Google AI Studio.");
     }
     throw error;
   }
@@ -135,8 +184,9 @@ export interface VideoResultData extends VideoData {
  * Generates a video animating a given logo using Veo or Canvas Motion Stage fallback.
  */
 export const generateVideo = async (prompt: string, logo: LogoData): Promise<VideoResultData> => {
+  const currentKey = getApiKey();
   try {
-    const aiForVideo = new GoogleGenAI({ apiKey: API_KEY });
+    const aiForVideo = new GoogleGenAI({ apiKey: currentKey });
     
     let operation = await aiForVideo.models.generateVideos({
       model: 'veo-3.1-lite-generate-preview',
@@ -162,7 +212,7 @@ export const generateVideo = async (prompt: string, logo: LogoData): Promise<Vid
       throw new Error("Video generation completed, but no download link was found.");
     }
 
-    const fullUri = `${downloadLink}&key=${API_KEY}`;
+    const fullUri = `${downloadLink}&key=${currentKey}`;
     const response = await fetch(fullUri);
     if (!response.ok) {
       throw new Error(`Failed to fetch Veo video: ${response.statusText}`);
@@ -424,7 +474,7 @@ export const generateColorPalettes = async (
 ): Promise<ColorPalette[]> => {
   if (!prompt.trim() && !referenceImage) return [];
   try {
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
     
     const contentsParts: any[] = [];
     if (referenceImage) {
@@ -447,38 +497,74 @@ For each palette:
 
     contentsParts.push({ text: textPrompt });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: contentsParts,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              themeName: { type: Type.STRING },
-              theoryType: { type: Type.STRING },
-              description: { type: Type.STRING },
-              colors: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    hex: { type: Type.STRING },
-                    name: { type: Type.STRING },
-                    role: { type: Type.STRING }
-                  },
-                  required: ["hex", "name", "role"]
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: contentsParts,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                themeName: { type: Type.STRING },
+                theoryType: { type: Type.STRING },
+                description: { type: Type.STRING },
+                colors: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      hex: { type: Type.STRING },
+                      name: { type: Type.STRING },
+                      role: { type: Type.STRING }
+                    },
+                    required: ["hex", "name", "role"]
+                  }
                 }
-              }
-            },
-            required: ["themeName", "theoryType", "description", "colors"]
-          }
-        },
-        temperature: 0.7
-      }
-    });
+              },
+              required: ["themeName", "theoryType", "description", "colors"]
+            }
+          },
+          temperature: 0.7
+        }
+      });
+    } catch {
+      response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: contentsParts,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                themeName: { type: Type.STRING },
+                theoryType: { type: Type.STRING },
+                description: { type: Type.STRING },
+                colors: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      hex: { type: Type.STRING },
+                      name: { type: Type.STRING },
+                      role: { type: Type.STRING }
+                    },
+                    required: ["hex", "name", "role"]
+                  }
+                }
+              },
+              required: ["themeName", "theoryType", "description", "colors"]
+            }
+          },
+          temperature: 0.7
+        }
+      });
+    }
 
     const parsed = JSON.parse(response.text.trim());
     return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
