@@ -140,15 +140,17 @@ export const LogoGenerator: React.FC<LogoGeneratorProps> = ({
       {/* Image Reference / Upload Section */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <label htmlFor="reference-image-input" className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 cursor-pointer">
             <span>🖼️</span> Reference Image / Sketch <span className="text-[10px] font-normal text-slate-400 lowercase">(optional)</span>
           </label>
         </div>
 
         <input
+          id="reference-image-input"
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          aria-label="Upload reference image or sketch"
           className="hidden"
           onChange={handleFileChange}
           disabled={isLoading}

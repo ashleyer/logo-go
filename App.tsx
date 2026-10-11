@@ -236,9 +236,24 @@ export default function App() {
           <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-xl mb-6 max-w-4xl mx-auto shadow-xs" role="alert">
             <div className="flex items-start">
               <span className="text-rose-500 mr-3 text-lg">⚠️</span>
-              <div>
-                <p className="font-mono font-bold text-sm">System Alert</p>
-                <p className="text-xs text-rose-800 font-sans mt-0.5">{error.message}</p>
+              <div className="flex-1">
+                <p className="font-mono font-bold text-sm">System Notice</p>
+                <p className="text-xs text-rose-800 font-sans mt-0.5 leading-relaxed">{error.message}</p>
+                {(error.message.includes('prepayment') || error.message.includes('credits') || error.message.includes('ai.studio') || error.message.includes('Permission') || error.message.includes('403')) && (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <a 
+                      href="https://ai.studio/projects" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-mono font-bold transition-colors shadow-2xs"
+                    >
+                      <span>Google AI Studio Projects & Keys ↗</span>
+                    </a>
+                    <span className="text-[11px] text-rose-700 font-sans">
+                      (If deployed on Vercel, update <code className="font-mono bg-rose-100 px-1 py-0.5 rounded font-bold">GEMINI_API_KEY</code> under Project Settings &gt; Environment Variables &amp; redeploy)
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

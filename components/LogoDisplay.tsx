@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { LogoData, LOGO_STYLES } from '../types';
-import { DownloadIcon } from './icons';
+import { DownloadIcon, SvgIcon, ImageIcon, ChevronDownIcon, CheckIcon, CloseIcon } from './icons';
+import { downloadHighResPng, downloadScalableSvg, PngResolution, SvgMode } from '../utils/logoExport';
 
 interface LogoDisplayProps {
   logo: LogoData | null;
@@ -19,20 +20,52 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
   const [bgMode, setBgMode] = useState<BgMode>('transparent');
   const [customBgHex, setCustomBgHex] = useState<string>('#0F172A');
 
+  // Download & Export States
+  const [isDownloadMenuOpen, setIsDownloadMenuOpen] = useState(false);
+  const [selectedPngResolution, setSelectedPngResolution] = useState<PngResolution>(2048);
+  const [selectedSvgMode, setSelectedSvgMode] = useState<SvgMode>('vector-embed');
+  const [preserveTransparency, setPreserveTransparency] = useState<boolean>(true);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [exportSuccessMessage, setExportSuccessMessage] = useState<string | null>(null);
+
   const imgRef = useRef<HTMLImageElement>(null);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   // Reset states whenever a new logo arrives
   useEffect(() => {
     setActivePaletteIndex(0);
     setColorTone('original');
     setBgMode('transparent');
+    setIsDownloadMenuOpen(false);
+    setExportSuccessMessage(null);
   }, [logo]);
+
+  // Close download menu on click outside or Escape
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(e.target as Node)) {
+        setIsDownloadMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDownloadMenuOpen(false);
+      }
+    };
+    if (isDownloadMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDownloadMenuOpen]);
 
   // File size metadata
   const sizeInBytes = logo ? Math.round(logo.base64.length * 0.75) : 0;
   const sizeInKb = (sizeInBytes / 1024).toFixed(1);
   const styleName = logo?.style ? (LOGO_STYLES.find((s) => s.id === logo.style)?.name || logo.style) : 'Custom';
-  const downloadFilename = `logo-go-${logo?.style || 'custom'}.png`;
 
   const handleCopyHex = (hex: string) => {
     navigator.clipboard.writeText(hex);
@@ -40,28 +73,31 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
     setTimeout(() => setCopiedHex(null), 2000);
   };
 
-  // Get active CSS filter string for image preview
-  const getFilterStyle = (): React.CSSProperties => {
+  // Get active CSS filter string for image preview and canvas export
+  const getFilterString = (): string => {
     switch (colorTone) {
       case 'emerald':
-        return { filter: 'hue-rotate(90deg) saturate(1.5) contrast(1.1)' };
+        return 'hue-rotate(90deg) saturate(1.5) contrast(1.1)';
       case 'warm':
-        return { filter: 'sepia(0.6) saturate(1.8) hue-rotate(-20deg)' };
+        return 'sepia(0.6) saturate(1.8) hue-rotate(-20deg)';
       case 'cyber':
-        return { filter: 'hue-rotate(185deg) saturate(2.2) brightness(1.1)' };
+        return 'hue-rotate(185deg) saturate(2.2) brightness(1.1)';
       case 'obsidian':
-        return { filter: 'grayscale(1) contrast(1.6) brightness(0.9)' };
+        return 'grayscale(1) contrast(1.6) brightness(0.9)';
       case 'sepia':
-        return { filter: 'sepia(0.95) hue-rotate(-15deg) contrast(1.1)' };
+        return 'sepia(0.95) hue-rotate(-15deg) contrast(1.1)';
       case 'monochrome':
-        return { filter: 'grayscale(1) contrast(2.2)' };
+        return 'grayscale(1) contrast(2.2)';
       case 'custom':
-        return {
-          filter: `drop-shadow(0 0 1px ${customTintHex}) saturate(1.5)`,
-        };
+        return `drop-shadow(0 0 1px ${customTintHex}) saturate(1.5)`;
       default:
-        return {};
+        return 'none';
     }
+  };
+
+  const getFilterStyle = (): React.CSSProperties => {
+    const fStr = getFilterString();
+    return fStr !== 'none' ? { filter: fStr } : {};
   };
 
   // Get background style for stage
@@ -87,58 +123,59 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
     }
   };
 
-  // Enhanced download with applied backdrop & color tune
-  const handleDownloadTuned = (dimension: number = 2048) => {
-    if (!logo) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = `data:${logo.mimeType};base64,${logo.base64}`;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = dimension;
-      canvas.height = dimension;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+  // Unified download trigger for high-res PNG
+  const handleDownloadPng = async (res: PngResolution = selectedPngResolution) => {
+    if (!logo || isExporting) return;
+    setIsExporting(true);
+    try {
+      await downloadHighResPng(logo.base64, logo.mimeType, res, {
+        styleName,
+        colorTone,
+        filterString: getFilterString(),
+        bgMode,
+        customBgHex,
+        customTintHex,
+        transparentBackground: preserveTransparency,
+      });
+      const resName = res === 4096 ? '4K Ultra HD (4096px)' : res === 2048 ? '2K HD (2048px)' : 'Standard (1024px)';
+      setExportSuccessMessage(`Downloaded ${resName} PNG (${preserveTransparency ? 'Transparent' : 'Solid'})`);
+      setTimeout(() => setExportSuccessMessage(null), 3500);
+      setIsDownloadMenuOpen(false);
+    } catch (err) {
+      console.error('Failed to export PNG:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
-      // Draw background if not transparent
-      if (bgMode !== 'transparent') {
-        let fillCol = '#FFFFFF';
-        if (bgMode === 'white') fillCol = '#FFFFFF';
-        else if (bgMode === 'cream') fillCol = '#FEFAE0';
-        else if (bgMode === 'dark') fillCol = '#0F172A';
-        else if (bgMode === 'emerald') fillCol = '#022C22';
-        else if (bgMode === 'custom') fillCol = customBgHex;
-
-        ctx.fillStyle = fillCol;
-        ctx.fillRect(0, 0, dimension, dimension);
-      }
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-
-      // Apply filter to canvas context if supported
-      const filterObj = getFilterStyle();
-      if (filterObj.filter) {
-        ctx.filter = filterObj.filter;
-      }
-
-      ctx.drawImage(img, 0, 0, dimension, dimension);
-
-      try {
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `logo-go-${logo.style || 'custom'}-${colorTone}-${dimension}px.png`;
-        link.href = dataUrl;
-        link.click();
-      } catch (err) {
-        console.error('Failed to export tuned logo:', err);
-      }
-    };
+  // Unified download trigger for scalable SVG
+  const handleDownloadSvg = async (mode: SvgMode = selectedSvgMode) => {
+    if (!logo || isExporting) return;
+    setIsExporting(true);
+    try {
+      await downloadScalableSvg(logo.base64, logo.mimeType, mode, {
+        styleName,
+        colorTone,
+        filterString: getFilterString(),
+        bgMode,
+        customBgHex,
+        customTintHex,
+        transparentBackground: preserveTransparency,
+      });
+      const modeName = mode === 'vector-paths' ? 'Pure Vector Paths' : 'Scalable Vector SVG';
+      setExportSuccessMessage(`Downloaded ${modeName} (.svg)`);
+      setTimeout(() => setExportSuccessMessage(null), 3500);
+      setIsDownloadMenuOpen(false);
+    } catch (err) {
+      console.error('Failed to export SVG:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
     <>
-      {/* Header / Info bar */}
+      {/* Header / Info & Download Bar */}
       <div className="flex items-center justify-between mb-2 min-h-[38px] flex-wrap gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <h3 className="text-sm font-mono font-bold uppercase tracking-wider text-slate-800">
@@ -156,27 +193,220 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
           )}
         </div>
 
+        {/* Primary Download Control Center */}
         {logo && (
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => handleDownloadTuned(512)}
-              className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg transition-all duration-200 border border-slate-200"
-              title="Download standard quality tuned logo (512x512)"
-            >
-              <DownloadIcon className="w-3 h-3 text-slate-600" aria-hidden="true" />
-              <span>Standard</span>
-            </button>
-            <button
-              onClick={() => handleDownloadTuned(2048)}
-              className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg transition-all duration-200 shadow-xs"
-              title="Download pristine HD tuned logo (2048x2048)"
-            >
-              <DownloadIcon className="w-3 h-3 text-white" aria-hidden="true" />
-              <span>HD (2048px)</span>
-            </button>
+          <div className="relative" ref={downloadMenuRef}>
+            <div className="flex items-center gap-1.5">
+              {/* Quick SVG Download Button */}
+              <button
+                type="button"
+                onClick={() => handleDownloadSvg('vector-embed')}
+                disabled={isExporting}
+                className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-lg transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                title="Download Scalable Vector SVG format directly"
+              >
+                <SvgIcon className="w-3.5 h-3.5 text-amber-700" aria-hidden="true" />
+                <span>SVG</span>
+              </button>
+
+              {/* Quick High-Res PNG Button */}
+              <button
+                type="button"
+                onClick={() => handleDownloadPng(2048)}
+                disabled={isExporting}
+                className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-lg transition-all duration-200 shadow-xs hover:shadow-sm active:scale-95 disabled:opacity-50"
+                title="Download High-Res HD PNG (2048x2048)"
+              >
+                <DownloadIcon className="w-3.5 h-3.5 text-white" aria-hidden="true" />
+                <span>HD PNG</span>
+              </button>
+
+              {/* Download Menu Dropdown Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsDownloadMenuOpen((prev) => !prev)}
+                aria-expanded={isDownloadMenuOpen}
+                aria-haspopup="true"
+                aria-label="Open logo download format options"
+                className="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-[11px] font-mono font-bold px-2 py-1.5 rounded-lg transition-all duration-200 shadow-2xs"
+                title="More Download Options: 4K PNG, SVG Vector Paths, Transparency"
+              >
+                <span>Options</span>
+                <ChevronDownIcon className={`w-3.5 h-3.5 text-slate-600 transition-transform duration-200 ${isDownloadMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </button>
+            </div>
+
+            {/* Comprehensive Download Menu Popover */}
+            {isDownloadMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 z-40 text-left animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <DownloadIcon className="w-4 h-4 text-emerald-600" />
+                    <span className="font-mono font-bold text-xs uppercase tracking-wider text-slate-900">
+                      Save & Download Logo
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDownloadMenuOpen(false)}
+                    className="text-slate-400 hover:text-slate-700 p-1 rounded-md"
+                    aria-label="Close download menu"
+                  >
+                    <CloseIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="mt-3 space-y-4">
+                  {/* Background Transparency Option */}
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <span className="block text-xs font-mono font-bold text-slate-800">
+                        Transparent Background
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-sans">
+                        {preserveTransparency
+                          ? 'Exports transparent alpha layer for any background'
+                          : 'Includes current stage color & backdrop'}
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={preserveTransparency}
+                        onChange={(e) => setPreserveTransparency(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+
+                  {/* Section 1: Scalable SVG Options */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                        <SvgIcon className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Vector SVG Format (.svg)</span>
+                      </span>
+                      <span className="text-[9px] font-mono bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
+                        Vector
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-sans mb-2">
+                      Infinite resolution for Figma, Illustrator, Canva, Web, and Laser/Vinyl cutting.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSvg('vector-embed')}
+                        disabled={isExporting}
+                        className="p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/70 text-left transition-all group flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="font-mono font-bold text-xs text-amber-950 flex items-center justify-between">
+                            <span>Scalable Vector SVG</span>
+                            <DownloadIcon className="w-3.5 h-3.5 text-amber-700 opacity-60 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <p className="text-[10px] text-slate-600 mt-0.5">
+                            Crisp vector container with embedded HD graphics. Universal compatibility.
+                          </p>
+                        </div>
+                        <span className="text-[9px] font-mono font-bold text-amber-800 mt-2 block">
+                          Download .svg ↗
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSvg('vector-paths')}
+                        disabled={isExporting}
+                        className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition-all group flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="font-mono font-bold text-xs text-slate-900 flex items-center justify-between">
+                            <span>Vector Paths SVG</span>
+                            <DownloadIcon className="w-3.5 h-3.5 text-slate-700 opacity-60 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <p className="text-[10px] text-slate-600 mt-0.5">
+                            Pure SVG path outlines. Ideal for plotters, CAD & vector editing.
+                          </p>
+                        </div>
+                        <span className="text-[9px] font-mono font-bold text-slate-700 mt-2 block">
+                          Download Paths .svg ↗
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Section 2: High-Resolution PNG Options */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>High-Resolution PNG (.png)</span>
+                      </span>
+                      <span className="text-[9px] font-mono bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                        Raster HD
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { res: 4096 as PngResolution, label: '4K Ultra HD', dims: '4096×4096', badge: '300 DPI Print' },
+                        { res: 2048 as PngResolution, label: '2K HD', dims: '2048×2048', badge: 'Retina Web' },
+                        { res: 1024 as PngResolution, label: 'Standard', dims: '1024×1024', badge: 'Icon / Avatar' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.res}
+                          type="button"
+                          onClick={() => handleDownloadPng(preset.res)}
+                          disabled={isExporting}
+                          className={`p-2 rounded-xl border text-left transition-all group flex flex-col justify-between ${
+                            preset.res === 4096
+                              ? 'bg-emerald-50/70 border-emerald-300 hover:bg-emerald-100/80'
+                              : 'bg-white border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div>
+                            <span className="block font-mono font-bold text-xs text-slate-900">
+                              {preset.label}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {preset.dims}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono font-bold text-emerald-700">
+                            <span>{preset.badge}</span>
+                            <DownloadIcon className="w-3 h-3 text-emerald-600 opacity-60 group-hover:opacity-100" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Export Feedback Toast */}
+      {exportSuccessMessage && (
+        <div className="mb-2 p-2 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl flex items-center justify-between text-xs font-mono animate-in fade-in duration-200 shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckIcon className="w-4 h-4 text-emerald-600" />
+            <span>{exportSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExportSuccessMessage(null)}
+            className="text-slate-400 hover:text-slate-700 p-0.5"
+            aria-label="Dismiss feedback"
+          >
+            <CloseIcon className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Primary Emblem Stage Canvas */}
       <div
@@ -199,7 +429,33 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
                 style={{ backgroundColor: customTintHex }}
               />
             )}
-            <div className="absolute bottom-2 left-2 right-2 bg-slate-900/80 backdrop-blur-xs px-3 py-1 rounded-lg flex justify-between items-center text-[10px] font-mono text-slate-300">
+
+            {/* Quick Action Overlay on Stage Hover */}
+            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-xs p-1.5 rounded-xl shadow-lg border border-slate-700/60 z-20">
+              <button
+                type="button"
+                onClick={() => handleDownloadPng(2048)}
+                disabled={isExporting}
+                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-mono font-bold transition-all shadow-xs"
+                title="Quick Save HD PNG"
+              >
+                <DownloadIcon className="w-3 h-3 text-white" />
+                <span>PNG HD</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownloadSvg('vector-embed')}
+                disabled={isExporting}
+                className="flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-[10px] font-mono font-bold transition-all shadow-xs"
+                title="Quick Save Scalable Vector SVG"
+              >
+                <SvgIcon className="w-3 h-3 text-slate-950" />
+                <span>SVG Vector</span>
+              </button>
+            </div>
+
+            {/* Stage Bottom Info Bar */}
+            <div className="absolute bottom-2 left-2 right-2 bg-slate-900/80 backdrop-blur-xs px-3 py-1.5 rounded-lg flex justify-between items-center text-[10px] font-mono text-slate-300">
               <span>Tune: {colorTone.toUpperCase()}</span>
               <span>Backdrop: {bgMode.toUpperCase()}</span>
               <span>Size: ~{sizeInKb} KB</span>
@@ -230,9 +486,9 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
 
           {/* Preset Color Tone Selector */}
           <div>
-            <label className="block text-[11px] font-mono font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
+            <div className="block text-[11px] font-mono font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
               1. Emblem Color Harmony Filter:
-            </label>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {(
                 [
@@ -264,15 +520,21 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
             {/* Custom Tint Picker */}
             {colorTone === 'custom' && (
               <div className="mt-2.5 flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                <span className="text-xs font-mono font-bold text-slate-700">Custom Emblem Color:</span>
+                <label htmlFor="custom-emblem-color-picker" className="text-xs font-mono font-bold text-slate-700">
+                  Custom Emblem Color:
+                </label>
                 <input
+                  id="custom-emblem-color-picker"
                   type="color"
+                  aria-label="Custom emblem color picker"
                   value={customTintHex}
                   onChange={(e) => setCustomTintHex(e.target.value)}
                   className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0 bg-transparent"
                 />
                 <input
+                  id="custom-emblem-color-hex"
                   type="text"
+                  aria-label="Custom emblem color hex code"
                   value={customTintHex}
                   onChange={(e) => setCustomTintHex(e.target.value)}
                   className="w-24 px-2 py-1 text-xs font-mono font-bold bg-white border border-slate-300 rounded uppercase"
@@ -284,13 +546,13 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
 
           {/* Background Canvas Selector */}
           <div>
-            <label className="block text-[11px] font-mono font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
+            <div className="block text-[11px] font-mono font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
               2. Stage Canvas Backdrop:
-            </label>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {(
                 [
-                  { id: 'transparent', label: 'Grid Grid' },
+                  { id: 'transparent', label: 'Grid' },
                   { id: 'white', label: 'Pure White' },
                   { id: 'cream', label: 'Warm Cream' },
                   { id: 'dark', label: 'Slate Dark' },
@@ -314,15 +576,21 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
 
             {bgMode === 'custom' && (
               <div className="mt-2.5 flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                <span className="text-xs font-mono font-bold text-slate-700">Custom Backdrop Color:</span>
+                <label htmlFor="custom-backdrop-color-picker" className="text-xs font-mono font-bold text-slate-700">
+                  Custom Backdrop Color:
+                </label>
                 <input
+                  id="custom-backdrop-color-picker"
                   type="color"
+                  aria-label="Custom backdrop color picker"
                   value={customBgHex}
                   onChange={(e) => setCustomBgHex(e.target.value)}
                   className="w-7 h-7 rounded border border-slate-300 cursor-pointer p-0 bg-transparent"
                 />
                 <input
+                  id="custom-backdrop-color-hex"
                   type="text"
+                  aria-label="Custom backdrop color hex code"
                   value={customBgHex}
                   onChange={(e) => setCustomBgHex(e.target.value)}
                   className="w-24 px-2 py-1 text-xs font-mono font-bold bg-white border border-slate-300 rounded uppercase"
@@ -335,9 +603,9 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
           {/* Dynamic Color Palette Theory Swatches with Quick Tune */}
           {logo.palettes && logo.palettes.length > 0 && (
             <div className="pt-2 border-t border-slate-200">
-              <label className="block text-[11px] font-mono font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
+              <div className="block text-[11px] font-mono font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
                 3. Brand Color Harmony Swatches (Click any swatch to apply):
-              </label>
+              </div>
 
               {/* Palette Tabs */}
               <div className="flex flex-wrap gap-1.5 mb-3">
@@ -428,3 +696,4 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
     </>
   );
 };
+

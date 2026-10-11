@@ -4,10 +4,10 @@ import { LogoData, ColorPalette, ReferenceImage } from "../types";
 
 export const getApiKey = (): string => {
   if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('GEMINI_API_KEY');
+    const stored = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GOOGLE_API_KEY');
     if (stored && stored.trim()) return stored.trim();
   }
-  const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (process.env as any).GOOGLE_API_KEY;
   if (envKey && envKey.trim() && envKey !== 'undefined') {
     return envKey.trim();
   }
@@ -168,7 +168,7 @@ export const generateLogo = async (
       throw new Error("API Permission Denied. Please ensure your Gemini API key has access to image generation models.");
     }
     if (error?.status === 429 || errStr.includes('429') || errStr.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') || msg.includes('prepayment') || msg.includes('depleted') || msg.includes('credit')) {
-      throw new Error("Gemini API rate limit or credits depleted. Please verify your billing/credits in Google AI Studio.");
+      throw new Error("Your Google AI Studio prepayment credits are depleted (HTTP 429). Please visit https://ai.studio/projects to manage billing and add credits.");
     }
     throw error;
   }
@@ -430,8 +430,10 @@ export const generate25LogoVariations = async (
   // Run generation in batches of 5 for optimal response time
   const results: LogoData[] = [];
   const BATCH_SIZE = 5;
+  let criticalError: Error | null = null;
 
   for (let i = 0; i < variationModifiers.length; i += BATCH_SIZE) {
+    if (criticalError) break;
     const chunk = variationModifiers.slice(i, i + BATCH_SIZE);
     const chunkPromises = chunk.map(async (mod) => {
       try {
@@ -448,8 +450,19 @@ export const generate25LogoVariations = async (
           style: mod.style,
           palettes
         };
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Error generating variation ${mod.tag}:`, err);
+        const errMsg = err?.message || String(err);
+        if (
+          errMsg.includes('depleted') ||
+          errMsg.includes('prepayment') ||
+          errMsg.includes('Permission Denied') ||
+          errMsg.includes('RESOURCE_EXHAUSTED') ||
+          errMsg.includes('429') ||
+          errMsg.includes('403')
+        ) {
+          criticalError = err instanceof Error ? err : new Error(errMsg);
+        }
         return null;
       }
     });
@@ -458,6 +471,14 @@ export const generate25LogoVariations = async (
     chunkResults.forEach((res) => {
       if (res) results.push(res);
     });
+
+    if (criticalError && results.length === 0) {
+      throw criticalError;
+    }
+  }
+
+  if (results.length === 0 && criticalError) {
+    throw criticalError;
   }
 
   return results;

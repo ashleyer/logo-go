@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { HistoryItem, LOGO_STYLES } from '../types';
-import { CloseIcon, TrashIcon, VideoIcon, ShareIcon, HistoryIcon, MaximizeIcon, MinimizeIcon } from './icons';
+import { CloseIcon, TrashIcon, VideoIcon, ShareIcon, HistoryIcon, MaximizeIcon, MinimizeIcon, DownloadIcon, SvgIcon } from './icons';
 import { ShareModal } from './ShareModal';
+import { downloadHighResPng, downloadScalableSvg } from '../utils/logoExport';
 
 interface HistorySidebarProps {
   isOpen: boolean;
@@ -292,8 +293,36 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                             )}
                           </div>
 
-                          {/* Card Action Overlay Buttons: Share & Delete */}
+                          {/* Card Action Overlay Buttons: Download PNG/SVG, Share & Delete */}
                           <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadHighResPng(item.logo.base64, item.logo.mimeType, 2048, {
+                                  styleName,
+                                  filename: `logo-go-${item.style || 'custom'}-2k.png`,
+                                });
+                              }}
+                              className="p-1.5 text-slate-700 hover:text-emerald-700 rounded-lg bg-white/95 hover:bg-emerald-50 border border-slate-200 shadow-xs transition-colors"
+                              aria-label="Download HD PNG"
+                              title="Download HD PNG"
+                            >
+                              <DownloadIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadScalableSvg(item.logo.base64, item.logo.mimeType, 'vector-embed', {
+                                  styleName,
+                                  filename: `logo-go-${item.style || 'custom'}.svg`,
+                                });
+                              }}
+                              className="p-1.5 text-slate-700 hover:text-amber-700 rounded-lg bg-white/95 hover:bg-amber-50 border border-slate-200 shadow-xs transition-colors"
+                              aria-label="Download Scalable SVG"
+                              title="Download Scalable SVG"
+                            >
+                              <SvgIcon className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -389,14 +418,43 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                             </div>
                           </div>
 
-                          {/* Action Buttons: Share & Delete */}
+                          {/* Action Buttons: Download PNG/SVG, Share & Delete */}
                           <div className="absolute right-2.5 top-3 flex items-center gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadHighResPng(item.logo.base64, item.logo.mimeType, 2048, {
+                                  styleName,
+                                  filename: `logo-go-${item.style || 'custom'}-2k.png`,
+                                });
+                              }}
+                              className="p-1.5 text-slate-600 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 border border-slate-200 transition-colors"
+                              aria-label="Download HD PNG"
+                              title="Download HD PNG"
+                            >
+                              <DownloadIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadScalableSvg(item.logo.base64, item.logo.mimeType, 'vector-embed', {
+                                  styleName,
+                                  filename: `logo-go-${item.style || 'custom'}.svg`,
+                                });
+                              }}
+                              className="p-1.5 text-slate-600 hover:text-amber-700 rounded-lg hover:bg-amber-50 border border-slate-200 transition-colors"
+                              aria-label="Download Scalable SVG"
+                              title="Download Scalable SVG"
+                            >
+                              <SvgIcon className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShareItem(item);
                               }}
                               className="p-1.5 text-slate-600 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 border border-slate-200 transition-colors"
+                              aria-label="Share logo design"
                               title="Share design"
                             >
                               <ShareIcon className="w-4 h-4" />
