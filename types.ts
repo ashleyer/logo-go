@@ -130,4 +130,130 @@ export interface HistoryItem {
   style: LogoStyleId;
   logo: LogoData;
   video: VideoData | null;
+  isCloudSaved?: boolean;
 }
+
+export interface ColorSuggestion {
+  name: string;
+  palette: string[];
+  vibe: string;
+  colorsPrompt: string;
+}
+
+export interface ImpressionSuggestion {
+  id: string;
+  label: string;
+  icon: string;
+  promptSnippet: string;
+  description: string;
+}
+
+export const CURATED_IMPRESSIONS: ImpressionSuggestion[] = [
+  {
+    id: 'hightech',
+    label: 'High-Tech & Futuristic',
+    icon: '⚡',
+    promptSnippet: 'Impression: "High-tech, innovative, futuristic & precise"',
+    description: 'Crisp geometry, cutting-edge tech aura, digital elegance',
+  },
+  {
+    id: 'timeless',
+    label: 'Prestigious & Timeless',
+    icon: '🏛️',
+    promptSnippet: 'Impression: "Prestigious, heritage, timeless & authoritative"',
+    description: 'Refined symmetry, enduring trust, bespoke craftsmanship',
+  },
+  {
+    id: 'organic',
+    label: 'Organic & Sustainable',
+    icon: '🌿',
+    promptSnippet: 'Impression: "Organic, eco-conscious, botanical & serene"',
+    description: 'Gentle curves, nature-inspired vitality, earth balance',
+  },
+  {
+    id: 'dynamic',
+    label: 'Energetic & Athletic',
+    icon: '🔥',
+    promptSnippet: 'Impression: "Dynamic, aerodynamic, high-energy & bold"',
+    description: 'Forward motion, sharp velocity, commanding presence',
+  },
+  {
+    id: 'minimal',
+    label: 'Minimalist & Modernist',
+    icon: '✨',
+    promptSnippet: 'Impression: "Ultra-minimalist, Swiss modernist, clean & iconic"',
+    description: 'Golden ratio, maximum negative space, pure essentialism',
+  },
+  {
+    id: 'luxury',
+    label: 'Luxury & Haute Couture',
+    icon: '💎',
+    promptSnippet: 'Impression: "Luxury, opulent, high-fashion & sophisticated"',
+    description: 'Exquisite monograms, golden proportions, sleek elegance',
+  },
+  {
+    id: 'artisanal',
+    label: 'Artisanal & Warm',
+    icon: '☕',
+    promptSnippet: 'Impression: "Warm, artisanal, handcrafted & approachable"',
+    description: 'Friendly charm, handcrafted soul, neighborhood warmth',
+  },
+  {
+    id: 'security',
+    label: 'Secure & Shielded',
+    icon: '🛡️',
+    promptSnippet: 'Impression: "Fortified, trustworthy, dependable & secure"',
+    description: 'Solid geometry, protective seal, unwavering stability',
+  },
+];
+
+export const CURATED_COLOR_HARMONIES: ColorSuggestion[] = [
+  {
+    name: 'Obsidian & Champagne Gold',
+    palette: ['#0F172A', '#D97706', '#FEF3C7'],
+    vibe: 'Luxury & Prestigious',
+    colorsPrompt: 'Colors: Deep obsidian black, champagne gold, and brushed ivory',
+  },
+  {
+    name: 'Emerald & Brushed Brass',
+    palette: ['#064E3B', '#10B981', '#F59E0B'],
+    vibe: 'Heritage & Prosperity',
+    colorsPrompt: 'Colors: Deep forest emerald green and antique brushed brass gold',
+  },
+  {
+    name: 'Electric Neon & Deep Carbon',
+    palette: ['#06B6D4', '#3B82F6', '#090D16'],
+    vibe: 'Cyber & High-Tech',
+    colorsPrompt: 'Colors: Electric cyan blue, vivid cobalt, and matte carbon black',
+  },
+  {
+    name: 'Sage, Terracotta & Sand',
+    palette: ['#047857', '#C2410C', '#FDE68A'],
+    vibe: 'Organic & Sustainable',
+    colorsPrompt: 'Colors: Earthy sage green, warm terracotta clay, and sunlit sand',
+  },
+  {
+    name: 'Sunset Coral & Golden Amber',
+    palette: ['#F43F5E', '#FB923C', '#FBBF24'],
+    vibe: 'Vibrant & Creative',
+    colorsPrompt: 'Colors: Radiant sunset coral, warm mango orange, and golden amber',
+  },
+  {
+    name: 'Midnight Navy & Crisp Platinum',
+    palette: ['#1E3A8A', '#38BDF8', '#F1F5F9'],
+    vibe: 'Corporate & Trusted',
+    colorsPrompt: 'Colors: Deep midnight navy, electric cerulean, and crisp platinum white',
+  },
+  {
+    name: 'Crimson & Matte Charcoal',
+    palette: ['#E11D48', '#BE123C', '#1E293B'],
+    vibe: 'Bold & Dynamic',
+    colorsPrompt: 'Colors: Vivid crimson red, deep ruby, and matte slate charcoal',
+  },
+  {
+    name: 'Monochrome Silver & Pitch Black',
+    palette: ['#000000', '#64748B', '#FFFFFF'],
+    vibe: 'Minimalist & Timeless',
+    colorsPrompt: 'Colors: Pitch black, titanium silver, and clean pure white',
+  },
+];

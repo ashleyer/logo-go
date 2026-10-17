@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HistoryItem, LOGO_STYLES } from '../types';
-import { CloseIcon, CopyIcon, CheckIcon, ShareIcon, DownloadIcon, VideoIcon, SvgIcon } from './icons';
+import { CloseIcon, CopyIcon, CheckIcon, ShareIcon, DownloadIcon, VideoIcon, SvgIcon, FolderZipIcon } from './icons';
 import { downloadScalableSvg } from '../utils/logoExport';
+import { downloadBatchZip } from '../utils/batchExport';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -21,6 +22,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [downloadSuccessMessage, setDownloadSuccessMessage] = useState<string | null>(null);
+  const [isZipping, setIsZipping] = useState(false);
+  const [zipProgress, setZipProgress] = useState(0);
 
   if (!isOpen) return null;
 
@@ -133,6 +136,21 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       }, idx * 250);
     });
     showDownloadNotice(`Started download sequence for ${targetItems.length} logos!`);
+  };
+
+  const handleDownloadZip = async () => {
+    const targetItems = items.length > 0 ? items : (item ? [item] : []);
+    if (targetItems.length === 0 || isZipping) return;
+    setIsZipping(true);
+    setZipProgress(0);
+    try {
+      await downloadBatchZip(targetItems, undefined, (percent) => setZipProgress(percent));
+      showDownloadNotice(`Exported ZIP bundle with ${targetItems.length} logos (SVG + PNG)!`);
+    } catch (err) {
+      console.error('Batch zip download failed:', err);
+    } finally {
+      setIsZipping(false);
+    }
   };
 
   const sharePlatforms = [
@@ -377,11 +395,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
-                    onClick={handleDownloadAllGalleryJson}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                    onClick={handleDownloadZip}
+                    disabled={isZipping}
+                    className="sm:col-span-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white py-2.5 px-3 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all shadow-xs disabled:opacity-50"
                   >
-                    <DownloadIcon className="w-3.5 h-3.5" />
-                    <span>Download Gallery Backup (JSON)</span>
+                    <FolderZipIcon className="w-4 h-4 text-emerald-200" />
+                    <span>
+                      {isZipping
+                        ? `Generating ZIP Archive (${zipProgress}%)...`
+                        : `Batch Download ZIP Bundle (${(items.length || galleryCount)} Logos with SVGs)`}
+                    </span>
                   </button>
 
                   <button
@@ -389,7 +412,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     className="bg-slate-900 hover:bg-black text-white py-2 px-3 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
                   >
                     <DownloadIcon className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Batch Download All Logos</span>
+                    <span>Batch Download PNGs</span>
+                  </button>
+
+                  <button
+                    onClick={handleDownloadAllGalleryJson}
+                    className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 py-2 px-3 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <DownloadIcon className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Backup Specs (JSON)</span>
                   </button>
                 </div>
               )}

@@ -1,15 +1,16 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { LogoGenerator } from './components/LogoGenerator';
 import { VideoGenerator } from './components/VideoGenerator';
 import { HistorySidebar } from './components/HistorySidebar';
 import { ShareModal } from './components/ShareModal';
-import { generateLogo, generateVideo, generatePromptSuggestions, generateColorPalettes, generate25LogoVariations } from './services/geminiService';
+import { generateLogo, generateVideo, generatePromptSuggestions, generate25LogoVariations } from './services/geminiService';
 import { LogoData, VideoData, ApiError, LogoStyleId, HistoryItem, ReferenceImage } from './types';
 import { ShareIcon, HistoryIcon } from './components/icons';
 import { useDebounce } from './hooks/useDebounce';
 import { getHistoryFromDB, saveHistoryToDB, deleteHistoryItemFromDB, clearAllHistoryFromDB } from './utils/db';
+import { useAuth } from './hooks/useAuth';
+import { saveLogoToCloud, getUserSavedLogos, deleteUserSavedLogo } from './services/firebase';
 
 export default function App() {
   const [prompt, setPrompt] = useState('');
@@ -31,22 +32,56 @@ export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
 
+  // Authentication & Cloud Sync
+  const { user, isLoading: isLoadingAuth, signIn, signOut } = useAuth();
+  const [cloudSavedCount, setCloudSavedCount] = useState(0);
+
   // Load history from IndexedDB on mount
   useEffect(() => {
     getHistoryFromDB()
-      .then(items => {
+      .then((items) => {
         setHistory(items);
-        // Pre-fill variations container if history exists
         if (items.length > 0) {
-          const initialVariations = items.slice(0, 25).map(item => item.logo);
+          const initialVariations = items.slice(0, 25).map((item) => item.logo);
           setVariations(initialVariations);
           if (!logo) setLogo(items[0].logo);
         }
       })
-      .catch(err => {
-        console.error("Failed to load logo history from IndexedDB:", err);
+      .catch((err) => {
+        console.error('Failed to load logo history from IndexedDB:', err);
       });
   }, []);
+
+  // Sync Cloud Saved logos when user logs in
+  useEffect(() => {
+    if (!user) {
+      setCloudSavedCount(0);
+      return;
+    }
+
+    getUserSavedLogos(user.uid)
+      .then((cloudItems) => {
+        setCloudSavedCount(cloudItems.length);
+        if (cloudItems.length > 0) {
+          setHistory((prev) => {
+            const existingIds = new Set(prev.map((i) => i.id));
+            const newCloudItems = cloudItems.filter((ci) => !existingIds.has(ci.id));
+            const merged = [
+              ...newCloudItems,
+              ...prev.map((i) => {
+                const isCloud = cloudItems.some((ci) => ci.id === i.id);
+                return isCloud ? { ...i, isCloudSaved: true } : i;
+              }),
+            ];
+            saveHistoryToDB(merged);
+            return merged;
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to sync cloud saved logos:', err);
+      });
+  }, [user]);
 
   // Save history helper (unlimited history)
   const saveHistory = useCallback(async (newHistory: HistoryItem[]) => {
@@ -54,14 +89,32 @@ export default function App() {
     await saveHistoryToDB(newHistory);
   }, []);
 
+  // Manual save to cloud helper for a specific item
+  const handleSaveToCloud = useCallback(async (item: HistoryItem) => {
+    if (!user) {
+      await signIn();
+      return;
+    }
+    await saveLogoToCloud(user.uid, item);
+    setHistory((prev) => {
+      const updated = prev.map((i) => (i.id === item.id ? { ...i, isCloudSaved: true } : i));
+      saveHistoryToDB(updated);
+      return updated;
+    });
+    setCloudSavedCount((prev) => prev + 1);
+  }, [user, signIn]);
+
   const handleDeleteHistoryItem = useCallback((id: string) => {
-    const updated = history.filter(item => item.id !== id);
+    const updated = history.filter((item) => item.id !== id);
     saveHistory(updated);
     deleteHistoryItemFromDB(id);
+    if (user) {
+      deleteUserSavedLogo(user.uid, id).catch((e) => console.warn('Cloud delete notice:', e));
+    }
     if (activeHistoryId === id) {
       setActiveHistoryId(null);
     }
-  }, [history, activeHistoryId, saveHistory]);
+  }, [history, activeHistoryId, saveHistory, user]);
 
   const handleClearHistory = useCallback(() => {
     saveHistory([]);
@@ -78,26 +131,29 @@ export default function App() {
     setActiveHistoryId(item.id);
     if (item.logo.referenceImage) {
       setReferenceImage(item.logo.referenceImage);
-    } else {
-      setReferenceImage(null);
     }
   }, []);
-  
-  const debouncedPrompt = useDebounce(prompt, 1500);
+
+  // Debounced prompt for suggestion fetching
+  const debouncedPrompt = useDebounce(prompt, 600);
 
   useEffect(() => {
-    if (debouncedPrompt.trim().length > 3) {
-      setIsLoadingSuggestions(true);
-      generatePromptSuggestions(debouncedPrompt)
-        .then(setSuggestions)
-        .catch(err => {
-          console.error("Failed to fetch suggestions:", err);
-          setSuggestions([]);
-        })
-        .finally(() => setIsLoadingSuggestions(false));
-    } else {
-      setSuggestions([]);
-    }
+    const fetchSuggestions = async () => {
+      if (debouncedPrompt.trim().length > 2) {
+        setIsLoadingSuggestions(true);
+        try {
+          const results = await generatePromptSuggestions(debouncedPrompt);
+          setSuggestions(results);
+        } catch (e) {
+          console.error('Failed to get prompt suggestions', e);
+        } finally {
+          setIsLoadingSuggestions(false);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    };
+    fetchSuggestions();
   }, [debouncedPrompt]);
 
   const handleGenerateLogo = useCallback(async () => {
@@ -105,19 +161,14 @@ export default function App() {
     setIsLoadingLogo(true);
     setError(null);
     setVideoError(null);
-    setLogo(null);
     setVideo(null);
     setActiveHistoryId(null);
 
     try {
-      const displayPrompt = prompt.trim() || (referenceImage ? "Uploaded image reference" : "Logo concept");
-      const [newLogo, palettes] = await Promise.all([
-        generateLogo(prompt, selectedStyle, referenceImage),
-        generateColorPalettes(prompt, selectedStyle, referenceImage)
-      ]);
-      const logoData = { ...newLogo, prompt_for_alt: displayPrompt, palettes };
+      const displayPrompt = prompt.trim() || (referenceImage ? 'Uploaded image reference' : 'Logo concept');
+      const logoData = await generateLogo(prompt, selectedStyle, referenceImage);
       setLogo(logoData);
-      setVariations(prev => [logoData, ...prev.slice(0, 24)]);
+      setVariations((prev) => [logoData, ...prev.slice(0, 24)]);
 
       const newItemId = Date.now().toString();
       const newItem: HistoryItem = {
@@ -126,19 +177,27 @@ export default function App() {
         prompt: displayPrompt,
         style: selectedStyle,
         logo: logoData,
-        video: null
+        video: null,
       };
+
+      // Auto-save to cloud if user is signed in
+      if (user) {
+        saveLogoToCloud(user.uid, newItem)
+          .then(() => setCloudSavedCount((c) => c + 1))
+          .catch((e) => console.warn('Cloud auto-save notice:', e));
+        newItem.isCloudSaved = true;
+      }
 
       setActiveHistoryId(newItemId);
       saveHistory([newItem, ...history]);
     } catch (err) {
       console.error(err);
-      const message = err instanceof Error ? err.message : "An unknown error occurred while creating the logo.";
+      const message = err instanceof Error ? err.message : 'An unknown error occurred while creating the logo.';
       setError({ message });
     } finally {
       setIsLoadingLogo(false);
     }
-  }, [prompt, selectedStyle, referenceImage, history, saveHistory]);
+  }, [prompt, selectedStyle, referenceImage, history, saveHistory, user]);
 
   const handleGenerate25Variations = useCallback(async () => {
     if (!prompt.trim() && !referenceImage) return;
@@ -150,7 +209,7 @@ export default function App() {
     setActiveHistoryId(null);
 
     try {
-      const displayPrompt = prompt.trim() || (referenceImage ? "Uploaded image reference" : "Logo concept");
+      const displayPrompt = prompt.trim() || (referenceImage ? 'Uploaded image reference' : 'Logo concept');
       const generatedVariations = await generate25LogoVariations(
         prompt, 
         selectedStyle, 
@@ -158,7 +217,7 @@ export default function App() {
       );
 
       if (generatedVariations.length === 0) {
-        throw new Error("Failed to generate logo variations. Please try again.");
+        throw new Error('Failed to generate logo variations. Please try again.');
       }
 
       setVariations(generatedVariations);
@@ -166,25 +225,36 @@ export default function App() {
       setLogo(firstLogo);
 
       const now = Date.now();
-      const newItems: HistoryItem[] = generatedVariations.map((logoData, idx) => ({
-        id: `${now}-${idx}`,
-        timestamp: now + idx,
-        prompt: displayPrompt,
-        style: (logoData.style as LogoStyleId) || selectedStyle,
-        logo: logoData,
-        video: null
-      }));
+      const newItems: HistoryItem[] = generatedVariations.map((logoData, idx) => {
+        const item: HistoryItem = {
+          id: `${now}-${idx}`,
+          timestamp: now + idx,
+          prompt: displayPrompt,
+          style: (logoData.style as LogoStyleId) || selectedStyle,
+          logo: logoData,
+          video: null,
+        };
+        if (user) {
+          saveLogoToCloud(user.uid, item).catch((e) => console.warn('Cloud batch auto-save notice:', e));
+          item.isCloudSaved = true;
+        }
+        return item;
+      });
+
+      if (user) {
+        setCloudSavedCount((c) => c + newItems.length);
+      }
 
       setActiveHistoryId(newItems[0].id);
       saveHistory([...newItems, ...history]);
     } catch (err) {
       console.error(err);
-      const message = err instanceof Error ? err.message : "An unknown error occurred while generating variations.";
+      const message = err instanceof Error ? err.message : 'An unknown error occurred while generating variations.';
       setError({ message });
     } finally {
       setIsLoadingLogo(false);
     }
-  }, [prompt, selectedStyle, referenceImage, history, saveHistory]);
+  }, [prompt, selectedStyle, referenceImage, history, saveHistory, user]);
 
   const handleGenerateVideo = useCallback(async (animationPrompt: string) => {
     if (!logo) return;
@@ -198,12 +268,11 @@ export default function App() {
       setVideo(videoResult);
 
       if (videoResult.isFallback) {
-        setVideoError("Rendered HD Motion Video via Motion Stage Engine.");
+        setVideoError('Rendered HD Motion Video via Motion Stage Engine.');
       }
 
-      // Save video animation as a NEW separate gallery item, preserving regular logo in history
       const newVideoId = `vid-${Date.now()}`;
-      const basePromptStr = prompt.trim() || logo.prompt_for_alt || "Logo Concept";
+      const basePromptStr = prompt.trim() || logo.prompt_for_alt || 'Logo Concept';
       const newVideoItem: HistoryItem = {
         id: newVideoId,
         timestamp: Date.now(),
@@ -213,24 +282,36 @@ export default function App() {
         video: videoResult,
       };
 
+      if (user) {
+        saveLogoToCloud(user.uid, newVideoItem)
+          .then(() => setCloudSavedCount((c) => c + 1))
+          .catch((e) => console.warn('Cloud video auto-save notice:', e));
+        newVideoItem.isCloudSaved = true;
+      }
+
       const updated = [newVideoItem, ...history];
       setActiveHistoryId(newVideoId);
       saveHistory(updated);
     } catch (err) {
       console.error(err);
-      const message = err instanceof Error ? err.message : "Video generation call failed.";
+      const message = err instanceof Error ? err.message : 'Video generation call failed.';
       setVideoError(message);
     } finally {
       setIsLoadingVideo(false);
     }
-  }, [logo, activeHistoryId, history, saveHistory, prompt, selectedStyle]);
-
-  const canGenerate = prompt.trim().length > 0 || referenceImage !== null;
+  }, [logo, history, saveHistory, prompt, selectedStyle, user]);
 
   return (
     <div className="bg-slate-50 min-h-screen text-slate-900 p-4 sm:p-6 md:p-8 flex flex-col justify-between selection:bg-emerald-100 selection:text-emerald-900">
       <div className="max-w-7xl mx-auto w-full flex-grow pb-16">
-        <Header />
+        <Header 
+          user={user}
+          isLoadingAuth={isLoadingAuth}
+          onSignIn={signIn}
+          onSignOut={signOut}
+          cloudSavedCount={cloudSavedCount}
+          onOpenHistory={() => setIsHistoryOpen(true)}
+        />
 
         {error && (
           <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-xl mb-6 max-w-4xl mx-auto shadow-xs" role="alert">
@@ -249,9 +330,6 @@ export default function App() {
                     >
                       <span>Google AI Studio Projects & Keys ↗</span>
                     </a>
-                    <span className="text-[11px] text-rose-700 font-sans">
-                      (If deployed on Vercel, update <code className="font-mono bg-rose-100 px-1 py-0.5 rounded font-bold">GEMINI_API_KEY</code> under Project Settings &gt; Environment Variables &amp; redeploy)
-                    </span>
                   </div>
                 )}
               </div>
@@ -299,7 +377,6 @@ export default function App() {
             </button>
             <div className="h-4 w-px bg-slate-700 my-auto" />
             
-            {/* Share Icon next to the green share button inside the black bar */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -333,6 +410,8 @@ export default function App() {
           onSelect={handleSelectHistoryItem}
           onDelete={handleDeleteHistoryItem}
           onClearAll={handleClearHistory}
+          isLoggedIn={!!user}
+          onSaveToCloud={handleSaveToCloud}
         />
 
         <ShareModal
@@ -358,7 +437,7 @@ export default function App() {
           <span>, 2026</span>
         </div>
         <div className="text-[11px] text-slate-400">
-          Powered by Gemini 3.6 Flash & Veo Video Engine
+          Powered by Gemini 3.8 Flash & Veo Video Engine
         </div>
       </footer>
     </div>

@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Loader } from './Loader';
 import { SparklesIcon, UploadIcon, ImageIcon, CloseIcon, HistoryIcon } from './icons';
-import { LogoStyleId, LOGO_STYLES, ReferenceImage } from '../types';
+import { LogoStyleId, LOGO_STYLES, ReferenceImage, CURATED_IMPRESSIONS, CURATED_COLOR_HARMONIES } from '../types';
 
 interface LogoGeneratorProps {
   prompt: string;
@@ -36,11 +36,30 @@ export const LogoGenerator: React.FC<LogoGeneratorProps> = ({
   onOpenHistory
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [suggestionTab, setSuggestionTab] = useState<'impressions' | 'colors' | 'ai'>('impressions');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleSuggestionClick = (suggestion: string) => {
     // Correctly handle an empty prompt to avoid a leading comma
     setPrompt(prev => prev.trim() ? `${prev.trim()}, ${suggestion}` : suggestion);
+  };
+
+  const applyColorChoice = (colorsPrompt: string) => {
+    setPrompt((prev) => {
+      if (prev.includes('Colors:')) {
+        return prev.replace(/Colors:\s*[^,;]+([,;]|$)/i, `${colorsPrompt}$1`).trim();
+      }
+      return prev.trim() ? `${prev.trim()}, ${colorsPrompt}` : colorsPrompt;
+    });
+  };
+
+  const applyImpression = (impressionSnippet: string) => {
+    setPrompt((prev) => {
+      if (prev.includes('Impression:')) {
+        return prev.replace(/Impression:\s*[^,;]+([,;]|$)/i, `${impressionSnippet}$1`).trim();
+      }
+      return prev.trim() ? `${prev.trim()}, ${impressionSnippet}` : impressionSnippet;
+    });
   };
 
   const processFile = (file: File) => {
@@ -269,30 +288,136 @@ export const LogoGenerator: React.FC<LogoGeneratorProps> = ({
           />
       </div>
 
-      { (isLoadingSuggestions || suggestions.length > 0) &&
-        <div className="mt-3">
-            <h4 className="text-xs font-mono font-bold text-slate-600 mb-2">AI Suggestions...</h4>
-            {isLoadingSuggestions ? (
-                <div role="status" className="flex items-center gap-2 text-xs text-slate-500">
-                    <Loader className="w-3.5 h-3.5" />
-                    Generating keyword ideas...
-                </div>
-            ) : (
-                <div className="flex flex-wrap gap-1.5">
-                    {suggestions.map((s, i) => (
-                        <button 
-                            key={i} 
-                            onClick={() => handleSuggestionClick(s)}
-                            aria-label={`Add suggestion: ${s}`}
-                            className="bg-slate-100 border border-slate-200 text-xs font-mono text-slate-700 px-2.5 py-1 rounded-full hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-900 transition-colors focus:outline-none"
-                        >
-                           {`+ "${s}"`}
-                        </button>
-                    ))}
-                </div>
-            )}
+      {/* Enhanced Color & Impression Suggestion Studio */}
+      <div className="mt-3 bg-slate-50 border border-slate-200/90 rounded-2xl p-3">
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/80 flex-wrap gap-2">
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setSuggestionTab('impressions')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
+                suggestionTab === 'impressions'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              💡 Brand Impressions
+            </button>
+            <button
+              type="button"
+              onClick={() => setSuggestionTab('colors')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
+                suggestionTab === 'colors'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              🎨 Color Harmonies
+            </button>
+            <button
+              type="button"
+              onClick={() => setSuggestionTab('ai')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition-all ${
+                suggestionTab === 'ai'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              ✨ AI Ideas ({suggestions.length})
+            </button>
+          </div>
+          <span className="text-[10px] font-mono text-slate-500">
+            Click to apply to prompt
+          </span>
         </div>
-      }
+
+        {/* Tab 1: Brand Impressions & Persona */}
+        {suggestionTab === 'impressions' && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 animate-in fade-in duration-150">
+            {CURATED_IMPRESSIONS.map((imp) => (
+              <button
+                key={imp.id}
+                type="button"
+                onClick={() => applyImpression(imp.promptSnippet)}
+                className="p-2 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-left transition-all duration-150 group shadow-2xs"
+                title={`${imp.promptSnippet} - ${imp.description}`}
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-sm">{imp.icon}</span>
+                  <span className="font-mono font-bold text-[11px] text-slate-800 group-hover:text-emerald-950 truncate">
+                    {imp.label}
+                  </span>
+                </div>
+                <p className="text-[9px] text-slate-500 line-clamp-1">
+                  {imp.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Tab 2: Color Harmonies with Visual Swatches */}
+        {suggestionTab === 'colors' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 animate-in fade-in duration-150">
+            {CURATED_COLOR_HARMONIES.map((ch, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => applyColorChoice(ch.colorsPrompt)}
+                className="p-2 rounded-xl bg-white hover:bg-amber-50 border border-slate-200 hover:border-amber-300 text-left transition-all duration-150 group flex items-center justify-between shadow-2xs"
+                title={ch.colorsPrompt}
+              >
+                <div className="min-w-0 pr-2">
+                  <div className="font-mono font-bold text-[11px] text-slate-900 group-hover:text-amber-950 truncate">
+                    {ch.name}
+                  </div>
+                  <div className="text-[9px] text-slate-500 font-sans">
+                    {ch.vibe}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {ch.palette.map((hex, pIdx) => (
+                    <span
+                      key={pIdx}
+                      style={{ backgroundColor: hex }}
+                      className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-2xs"
+                    />
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Tab 3: Dynamic AI Prompt Suggestions */}
+        {suggestionTab === 'ai' && (
+          <div className="animate-in fade-in duration-150">
+            {isLoadingSuggestions ? (
+              <div role="status" className="flex items-center gap-2 py-2 text-xs text-slate-500">
+                <Loader className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Generating tailored brand ideas for your prompt...</span>
+              </div>
+            ) : suggestions.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => handleSuggestionClick(s)}
+                    className="bg-white border border-slate-200 text-xs font-mono text-slate-700 px-2.5 py-1 rounded-full hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-900 transition-colors shadow-2xs"
+                  >
+                    + {s}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 py-1">
+                Type details about your brand or mission above to receive dynamic AI suggestions.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Action Buttons */}
       <div className="mt-4 space-y-2">

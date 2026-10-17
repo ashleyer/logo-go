@@ -15,9 +15,12 @@ import {
   SwapIcon,
   CheckIcon,
   CopyIcon,
+  FolderZipIcon,
+  CloudIcon,
 } from './icons';
 import { ShareModal } from './ShareModal';
 import { downloadHighResPng, downloadScalableSvg } from '../utils/logoExport';
+import { downloadBatchZip } from '../utils/batchExport';
 
 interface HistorySidebarProps {
   isOpen: boolean;
@@ -27,6 +30,9 @@ interface HistorySidebarProps {
   onSelect: (item: HistoryItem) => void;
   onDelete: (id: string) => void;
   onClearAll: () => void;
+  isLoggedIn?: boolean;
+  onSaveToCloud?: (item: HistoryItem) => Promise<void>;
+  onBatchShare?: (items: HistoryItem[]) => void;
 }
 
 export const HistorySidebar: React.FC<HistorySidebarProps> = ({
@@ -37,12 +43,20 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   onSelect,
   onDelete,
   onClearAll,
+  isLoggedIn = false,
+  onSaveToCloud,
+  onBatchShare,
 }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'split'>('grid');
-  const [filterMode, setFilterMode] = useState<'all' | 'logos' | 'videos'>('all');
+  const [filterMode, setFilterMode] = useState<'all' | 'cloud' | 'videos'>('all');
   const [isExpanded, setIsExpanded] = useState(false);
   const [shareItem, setShareItem] = useState<HistoryItem | null | undefined>(undefined);
+  const [batchShareItems, setBatchShareItems] = useState<HistoryItem[] | null>(null);
   const [previewVideoItem, setPreviewVideoItem] = useState<HistoryItem | null>(null);
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isZipping, setIsZipping] = useState(false);
+  const [savingCloudId, setSavingCloudId] = useState<string | null>(null);
 
   // Split-Screen comparison states
   const [slotAId, setSlotAId] = useState<string | null>(null);
@@ -94,11 +108,53 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   }, [isOpen, onClose]);
 
   const videoCount = items.filter((item) => !!item.video).length;
+  const cloudCount = items.filter((item) => !!item.isCloudSaved).length;
 
   const filteredItems = items.filter((item) => {
     if (filterMode === 'videos') return !!item.video;
+    if (filterMode === 'cloud') return !!item.isCloudSaved;
     return true;
   });
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === filteredItems.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredItems.map((i) => i.id)));
+    }
+  };
+
+  const handleBatchDownloadZip = async () => {
+    const selectedItems = items.filter((i) => selectedIds.has(i.id));
+    if (selectedItems.length === 0 || isZipping) return;
+    setIsZipping(true);
+    try {
+      await downloadBatchZip(selectedItems);
+    } catch (err) {
+      console.error('Batch ZIP failed:', err);
+    } finally {
+      setIsZipping(false);
+    }
+  };
+
+  const handleBatchShare = () => {
+    const selectedItems = items.filter((i) => selectedIds.has(i.id));
+    if (selectedItems.length === 0) return;
+    if (onBatchShare) {
+      onBatchShare(selectedItems);
+    } else {
+      setBatchShareItems(selectedItems);
+    }
+  };
 
   const handleSwapSlots = () => {
     const temp = slotAId;
@@ -261,7 +317,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 </div>
 
                 {/* Gallery Filter Tabs & Share Button */}
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-1 bg-slate-200/70 p-1 rounded-xl border border-slate-300">
                     <button
                       onClick={() => setFilterMode('all')}
@@ -273,6 +329,19 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                     >
                       All ({items.length})
                     </button>
+                    {isLoggedIn && (
+                      <button
+                        onClick={() => setFilterMode('cloud')}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-colors flex items-center gap-1 ${
+                          filterMode === 'cloud'
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <CloudIcon className="w-3.5 h-3.5" />
+                        <span>Cloud ({cloudCount})</span>
+                      </button>
+                    )}
                     <button
                       onClick={() => setFilterMode('videos')}
                       className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-colors flex items-center gap-1 ${
@@ -285,13 +354,31 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                     </button>
                   </div>
 
-                  <button
-                    onClick={() => setShareItem(null)} // null = share full gallery
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-xs py-1.5 px-3 rounded-xl transition-colors flex items-center gap-1.5 shadow-2xs"
-                  >
-                    <ShareIcon className="w-3.5 h-3.5" />
-                    <span>Share Gallery</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Batch Selection Mode Toggle */}
+                    <button
+                      onClick={() => {
+                        setIsBatchMode((prev) => !prev);
+                      }}
+                      className={`font-mono font-bold text-xs py-1.5 px-3 rounded-xl transition-colors flex items-center gap-1.5 shadow-2xs border ${
+                        isBatchMode
+                          ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                      }`}
+                      title="Select multiple logos to batch download as ZIP or batch share"
+                    >
+                      <FolderZipIcon className="w-3.5 h-3.5" />
+                      <span>{isBatchMode ? 'Exit Batch' : 'Batch Actions'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShareItem(null)} // null = share full gallery
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-xs py-1.5 px-3 rounded-xl transition-colors flex items-center gap-1.5 shadow-2xs"
+                    >
+                      <ShareIcon className="w-3.5 h-3.5" />
+                      <span>Share Gallery</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1015,9 +1102,38 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                               alt={item.prompt}
                               className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-300"
                             />
-                            {isSelected && (
+                            {/* Batch Selection Checkbox */}
+                            {isBatchMode && (
+                              <div
+                                className="absolute top-1.5 left-1.5 z-10 p-1 bg-white/95 rounded-md shadow-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSelect(item.id);
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(item.id)}
+                                  onChange={() => {}}
+                                  aria-label={`Select ${item.prompt}`}
+                                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                />
+                              </div>
+                            )}
+
+                            {isSelected && !isBatchMode && (
                               <div className="absolute top-1.5 left-1.5 bg-emerald-600 text-white font-mono font-bold text-[10px] px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider">
                                 Active
+                              </div>
+                            )}
+
+                            {item.isCloudSaved && (
+                              <div
+                                className={`absolute ${isBatchMode ? 'top-1.5 right-1.5' : 'bottom-1.5 left-1.5'} bg-emerald-700/90 text-white font-mono font-bold text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1 shadow-2xs`}
+                                title="Saved to your Google Cloud account"
+                              >
+                                <CloudIcon className="w-2.5 h-2.5" />
+                                <span>Saved</span>
                               </div>
                             )}
 
@@ -1122,6 +1238,25 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                               <SvgIcon className="w-3.5 h-3.5 text-amber-600" />
                               <span>SVG</span>
                             </button>
+                            {isLoggedIn && onSaveToCloud && !item.isCloudSaved && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setSavingCloudId(item.id);
+                                  try {
+                                    await onSaveToCloud(item);
+                                  } finally {
+                                    setSavingCloudId(null);
+                                  }
+                                }}
+                                disabled={savingCloudId === item.id}
+                                className="p-1.5 text-slate-700 hover:text-emerald-700 rounded-lg bg-white/95 hover:bg-emerald-50 border border-slate-200 shadow-xs transition-colors"
+                                title="Save to your Google Cloud account"
+                                aria-label="Save to Cloud"
+                              >
+                                <CloudIcon className={`w-4 h-4 ${savingCloudId === item.id ? 'animate-pulse text-amber-500' : 'text-emerald-600'}`} />
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1188,6 +1323,34 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                               alt={item.prompt}
                               className="max-w-full max-h-full object-contain"
                             />
+                            {/* Batch Selection Checkbox */}
+                            {isBatchMode && (
+                              <div
+                                className="absolute top-1 left-1 z-10 p-0.5 bg-white/95 rounded shadow-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSelect(item.id);
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(item.id)}
+                                  onChange={() => {}}
+                                  aria-label={`Select ${item.prompt}`}
+                                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                />
+                              </div>
+                            )}
+
+                            {item.isCloudSaved && (
+                              <div
+                                className="absolute bottom-1 left-1 bg-emerald-700/90 text-white font-mono font-bold text-[8px] px-1 py-0.5 rounded flex items-center gap-0.5 shadow-2xs"
+                                title="Saved in Cloud"
+                              >
+                                <CloudIcon className="w-2.5 h-2.5" />
+                                <span>Saved</span>
+                              </div>
+                            )}
                             {item.video && (
                               <button
                                 onClick={(e) => {
@@ -1267,6 +1430,25 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                               <SvgIcon className="w-3.5 h-3.5 text-amber-600" />
                               <span>SVG</span>
                             </button>
+                            {isLoggedIn && onSaveToCloud && !item.isCloudSaved && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setSavingCloudId(item.id);
+                                  try {
+                                    await onSaveToCloud(item);
+                                  } finally {
+                                    setSavingCloudId(null);
+                                  }
+                                }}
+                                disabled={savingCloudId === item.id}
+                                className="p-1.5 text-slate-600 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 border border-slate-200 transition-colors"
+                                title="Save to your Google Cloud account"
+                                aria-label="Save to Cloud"
+                              >
+                                <CloudIcon className={`w-4 h-4 ${savingCloudId === item.id ? 'animate-pulse text-amber-500' : 'text-emerald-600'}`} />
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1297,8 +1479,59 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 )}
               </div>
 
+              {/* Sticky Batch Actions Bar */}
+              {isBatchMode && (
+                <div className="p-3 bg-slate-900 border-t border-slate-800 text-white flex items-center justify-between flex-wrap gap-2 shadow-2xl z-30">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-xs">
+                      {selectedIds.size} of {filteredItems.length} Selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleSelectAll}
+                      className="text-[11px] font-mono text-emerald-400 hover:text-emerald-300 underline"
+                    >
+                      {selectedIds.size === filteredItems.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleBatchDownloadZip}
+                      disabled={selectedIds.size === 0 || isZipping}
+                      className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-mono font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-colors shadow-2xs"
+                    >
+                      <FolderZipIcon className="w-4 h-4" />
+                      <span>{isZipping ? 'Zipping...' : 'Download ZIP Bundle'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleBatchShare}
+                      disabled={selectedIds.size === 0}
+                      className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-mono font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-700 shadow-2xs"
+                    >
+                      <ShareIcon className="w-4 h-4 text-emerald-400" />
+                      <span>Batch Share</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBatchMode(false);
+                        setSelectedIds(new Set());
+                      }}
+                      className="text-slate-400 hover:text-white p-1 text-xs font-mono"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Footer actions */}
-              {items.length > 0 && (
+              {items.length > 0 && !isBatchMode && (
                 <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
                   <span className="text-xs font-mono text-slate-500">
                     {items.length} Saved Creations ({videoCount} Videos)
@@ -1317,13 +1550,25 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Share Modal Trigger */}
+      {/* Share Modal Trigger for single or full gallery */}
       {shareItem !== undefined && (
         <ShareModal
           isOpen={shareItem !== undefined}
           onClose={() => setShareItem(undefined)}
           item={shareItem}
           galleryCount={items.length}
+          items={items}
+        />
+      )}
+
+      {/* Share Modal Trigger for batch selected items */}
+      {batchShareItems !== null && (
+        <ShareModal
+          isOpen={batchShareItems !== null}
+          onClose={() => setBatchShareItems(null)}
+          item={null}
+          items={batchShareItems}
+          galleryCount={batchShareItems.length}
         />
       )}
 

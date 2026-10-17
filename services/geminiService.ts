@@ -51,7 +51,12 @@ export const generatePromptSuggestions = async (prompt: string): Promise<string[
     const ai = new GoogleGenAI({ apiKey: getApiKey() });
     const response = await ai.models.generateContent({
       model: "gemini-3.8-flash",
-      contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 3-4 short, creative keywords, taglines, or style modifiers they could add (e.g., "Mission: 'Pioneer sustainable tech'", "Impression: sleek & confident", "Colors: Emerald & charcoal", "Person: A.R."). Return only a JSON array of strings.`,
+      contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 4 short, distinct brand enhancements:
+1. Tailored Color harmony (e.g., "Colors: Deep obsidian & champagne gold")
+2. Distinct Brand Impression (e.g., "Impression: 'Sleek, futuristic & authoritative'")
+3. Mission or Purpose (e.g., "Mission: 'Pioneering regenerative tech'")
+4. Emblem Concept (e.g., "Symbol: Minimalist geometric nexus")
+Return only a JSON array of 4 strings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -60,7 +65,7 @@ export const generatePromptSuggestions = async (prompt: string): Promise<string[
             type: Type.STRING
           }
         },
-        temperature: 0.8,
+        temperature: 0.75,
       }
     });
 
@@ -68,15 +73,14 @@ export const generatePromptSuggestions = async (prompt: string): Promise<string[
     const suggestions = JSON.parse(jsonText);
     return Array.isArray(suggestions) ? suggestions.slice(0, 4) : [];
   } catch {
-    // Graceful fallback suggestions on quota/credit depletion or network failure
+    // Curated high-impact fallback suggestions based on brand context
     const lower = prompt.toLowerCase();
     const fallbacks: string[] = [];
-    if (!lower.includes("mission")) fallbacks.push(`Mission: "Pioneer innovation & excellence"`);
-    if (!lower.includes("impression") && !lower.includes("persona")) fallbacks.push(`Impression: "Sleek, confident & modern"`);
-    if (!lower.includes("color")) fallbacks.push(`Colors: Emerald green & matte gold`);
-    if (!lower.includes("person") && !lower.includes("initial")) fallbacks.push(`Person: "A.R."`);
-    if (!lower.includes("group")) fallbacks.push(`Group: "Studio Vanguard"`);
-    return fallbacks.slice(0, 3);
+    if (!lower.includes("impression")) fallbacks.push(`Impression: "Prestigious, timeless & modern"`);
+    if (!lower.includes("color")) fallbacks.push(`Colors: Obsidian black, brushed gold & ivory`);
+    if (!lower.includes("mission")) fallbacks.push(`Mission: "Pioneering innovation & excellence"`);
+    if (!lower.includes("symbol")) fallbacks.push(`Symbol: Geometric monogram badge`);
+    return fallbacks.slice(0, 4);
   }
 };
 

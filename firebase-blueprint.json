@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public user profile data",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "email"]
+    },
+    "SavedLogo": {
+      "title": "SavedLogo",
+      "description": "Logo emblem design saved by the user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "prompt": { "type": "string", "maxLength": 2000 },
+        "style": { "type": "string", "maxLength": 64 },
+        "base64": { "type": "string", "maxLength": 800000 },
+        "mimeType": { "type": "string", "maxLength": 64 },
+        "svgContent": { "type": "string", "maxLength": 300000 },
+        "videoUrl": { "type": "string", "maxLength": 1024 },
+        "timestamp": { "type": "number" },
+        "favorite": { "type": "boolean" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "prompt", "base64", "mimeType", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document"
+    },
+    "/users/{userId}/savedLogos/{logoId}": {
+      "schema": "SavedLogo",
+      "description": "User saved logos subcollection"
+    }
+  }
+}
