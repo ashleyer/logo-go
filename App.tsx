@@ -239,7 +239,7 @@ export default function App() {
               <div className="flex-1">
                 <p className="font-mono font-bold text-sm">System Notice</p>
                 <p className="text-xs text-rose-800 font-sans mt-0.5 leading-relaxed">{error.message}</p>
-                {(error.message.includes('prepayment') || error.message.includes('credits') || error.message.includes('ai.studio') || error.message.includes('Permission') || error.message.includes('403')) && (
+                {(error.message.includes('prepayment') || error.message.includes('credits') || error.message.includes('ai.studio') || error.message.includes('Permission') || error.message.includes('403') || error.message.includes('402') || error.message.includes('RESOURCE_EXHAUSTED')) && (
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     <a 
                       href="https://ai.studio/projects" 

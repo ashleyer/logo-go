@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { HistoryItem } from '../types';
-import { CloseIcon, CopyIcon, CheckIcon, ShareIcon, DownloadIcon, VideoIcon } from './icons';
+import { HistoryItem, LOGO_STYLES } from '../types';
+import { CloseIcon, CopyIcon, CheckIcon, ShareIcon, DownloadIcon, VideoIcon, SvgIcon } from './icons';
+import { downloadScalableSvg } from '../utils/logoExport';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -67,6 +68,19 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     link.click();
     document.body.removeChild(link);
     showDownloadNotice('Downloaded Logo Image!');
+  };
+
+  const handleDownloadSvg = async (logoItem: HistoryItem) => {
+    try {
+      const styleName = LOGO_STYLES.find((s) => s.id === logoItem.style)?.name || logoItem.style;
+      await downloadScalableSvg(logoItem.logo.base64, logoItem.logo.mimeType, 'vector-embed', {
+        styleName,
+        rawSvgContent: logoItem.logo.svgContent,
+      });
+      showDownloadNotice('Exported Scalable Vector SVG!');
+    } catch (err) {
+      console.error('Failed to export SVG:', err);
+    }
   };
 
   const handleDownloadVideo = (logoItem: HistoryItem) => {
@@ -315,11 +329,21 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               {isSingleItem && item ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
+                    onClick={() => handleDownloadSvg(item)}
+                    className="bg-amber-500 hover:bg-amber-600 text-white py-2 px-3 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                    title="Export as a scalable vector SVG file for high-quality usage"
+                  >
+                    <SvgIcon className="w-3.5 h-3.5 text-white" />
+                    <span>Export SVG (Vector)</span>
+                  </button>
+
+                  <button
                     onClick={() => handleDownloadLogo(item)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                    title="Download high-resolution image"
                   >
                     <DownloadIcon className="w-3.5 h-3.5" />
-                    <span>Download Logo ({item.logo.mimeType?.includes('svg') ? 'SVG' : 'PNG'})</span>
+                    <span>Download PNG</span>
                   </button>
 
                   {item.video ? (

@@ -161,6 +161,7 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
         customBgHex,
         customTintHex,
         transparentBackground: preserveTransparency,
+        rawSvgContent: logo.svgContent,
       });
       const modeName = mode === 'vector-paths' ? 'Pure Vector Paths' : 'Scalable Vector SVG';
       setExportSuccessMessage(`Downloaded ${modeName} (.svg)`);
@@ -197,22 +198,22 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
         {logo && (
           <div className="relative" ref={downloadMenuRef}>
             <div className="flex items-center gap-1.5">
-              {/* Quick SVG Download Button */}
+              {/* Primary SVG Export Button */}
               <button
                 type="button"
-                onClick={() => handleDownloadSvg('vector-embed')}
+                onClick={() => handleDownloadSvg(selectedSvgMode)}
                 disabled={isExporting}
-                className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-lg transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
-                title="Download Scalable Vector SVG format directly"
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border border-amber-600 text-[11px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
+                title="Export generated logo as a high-quality SVG file for Figma, Illustrator, Canva & web"
               >
-                <SvgIcon className="w-3.5 h-3.5 text-amber-700" aria-hidden="true" />
-                <span>SVG</span>
+                <SvgIcon className="w-3.5 h-3.5 text-white" aria-hidden="true" />
+                <span>Export SVG</span>
               </button>
 
               {/* Quick High-Res PNG Button */}
               <button
                 type="button"
-                onClick={() => handleDownloadPng(2048)}
+                onClick={() => handleDownloadPng(selectedPngResolution)}
                 disabled={isExporting}
                 className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-mono font-bold px-2.5 py-1.5 rounded-lg transition-all duration-200 shadow-xs hover:shadow-sm active:scale-95 disabled:opacity-50"
                 title="Download High-Res HD PNG (2048x2048)"
@@ -269,9 +270,11 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
                           : 'Includes current stage color & backdrop'}
                       </span>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
+                    <label htmlFor="preserve-transparency-toggle" className="relative inline-flex items-center cursor-pointer">
                       <input
+                        id="preserve-transparency-toggle"
                         type="checkbox"
+                        aria-label="Preserve transparent background"
                         checked={preserveTransparency}
                         onChange={(e) => setPreserveTransparency(e.target.checked)}
                         className="sr-only peer"
@@ -444,13 +447,13 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
               </button>
               <button
                 type="button"
-                onClick={() => handleDownloadSvg('vector-embed')}
+                onClick={() => handleDownloadSvg(selectedSvgMode)}
                 disabled={isExporting}
-                className="flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-[10px] font-mono font-bold transition-all shadow-xs"
-                title="Quick Save Scalable Vector SVG"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-[10px] font-mono font-bold transition-all shadow-xs"
+                title="Export logo as a scalable vector SVG file for high-quality usage"
               >
-                <SvgIcon className="w-3 h-3 text-slate-950" />
-                <span>SVG Vector</span>
+                <SvgIcon className="w-3.5 h-3.5 text-slate-950" />
+                <span>Export SVG</span>
               </button>
             </div>
 
@@ -465,6 +468,109 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
           <p className="text-slate-400 text-xs font-mono text-center">Your logo emblem will appear here once created.</p>
         )}
       </div>
+
+      {/* Dedicated High-Quality Logo Export Toolbar */}
+      {logo && (
+        <div className="mt-3 p-3.5 bg-gradient-to-r from-amber-50/90 via-emerald-50/50 to-slate-50 border border-amber-200/90 rounded-2xl shadow-xs">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
+              <SvgIcon className="w-4 h-4 text-amber-600" />
+              <span>High-Quality Logo Export</span>
+            </span>
+            <span className="text-[10px] font-mono text-amber-800 bg-amber-100/90 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
+              Infinite Resolution &amp; Print-Ready
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* Primary SVG Export Button */}
+            <button
+              type="button"
+              onClick={() => handleDownloadSvg(selectedSvgMode)}
+              disabled={isExporting}
+              className="group flex items-center justify-between bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-mono font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-xs hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-50"
+              title="Export the generated logo as a scalable vector SVG file for high-quality usage in Figma, Illustrator, Canva, web & print"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white/20 rounded-lg">
+                  <SvgIcon className="w-4 h-4 text-white" aria-hidden="true" />
+                </div>
+                <div className="text-left">
+                  <div className="leading-tight font-bold">Export as SVG</div>
+                  <div className="text-[9px] text-amber-100 font-sans font-normal">
+                    {selectedSvgMode === 'vector-paths' ? 'Pure Vector Paths' : 'Scalable Vector SVG'}
+                  </div>
+                </div>
+              </div>
+              <DownloadIcon className="w-4 h-4 text-white/80 group-hover:translate-y-0.5 transition-transform" />
+            </button>
+
+            {/* High-Resolution PNG Export Button */}
+            <button
+              type="button"
+              onClick={() => handleDownloadPng(selectedPngResolution)}
+              disabled={isExporting}
+              className="group flex items-center justify-between bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-xs hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-50"
+              title="Export logo as high-resolution PNG format (2048px / 4096px 4K)"
+            >
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white/10 rounded-lg">
+                  <DownloadIcon className="w-4 h-4 text-emerald-400" aria-hidden="true" />
+                </div>
+                <div className="text-left">
+                  <div className="leading-tight font-bold">Export HD PNG</div>
+                  <div className="text-[9px] text-slate-300 font-sans font-normal">
+                    {selectedPngResolution === 4096 ? '4K Ultra HD (4096px)' : selectedPngResolution === 2048 ? '2K HD (2048px)' : 'Standard (1024px)'} • {preserveTransparency ? 'Alpha' : 'Solid'}
+                  </div>
+                </div>
+              </div>
+              <DownloadIcon className="w-4 h-4 text-slate-300 group-hover:translate-y-0.5 transition-transform" />
+            </button>
+          </div>
+
+          {/* Quick Format Customizer Row */}
+          <div className="mt-2.5 pt-2 border-t border-amber-200/60 flex items-center justify-between flex-wrap gap-2 text-[10px] font-mono">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-600 font-bold">SVG Mode:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedSvgMode('vector-embed')}
+                className={`px-2 py-0.5 rounded-md font-bold transition-colors ${
+                  selectedSvgMode === 'vector-embed'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                Scalable Vector
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedSvgMode('vector-paths')}
+                className={`px-2 py-0.5 rounded-md font-bold transition-colors ${
+                  selectedSvgMode === 'vector-paths'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                Vector Paths
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label htmlFor="toolbar-transparency-toggle" className="flex items-center gap-1.5 cursor-pointer text-slate-700 font-bold">
+                <input
+                  id="toolbar-transparency-toggle"
+                  type="checkbox"
+                  checked={preserveTransparency}
+                  onChange={(e) => setPreserveTransparency(e.target.checked)}
+                  className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5 border-slate-300"
+                />
+                <span>Transparent Alpha</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Advanced Interactive Color Tuning Control Suite */}
       {logo && (

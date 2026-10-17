@@ -1,7 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { HistoryItem, LOGO_STYLES } from '../types';
-import { CloseIcon, TrashIcon, VideoIcon, ShareIcon, HistoryIcon, MaximizeIcon, MinimizeIcon, DownloadIcon, SvgIcon } from './icons';
+import {
+  CloseIcon,
+  TrashIcon,
+  VideoIcon,
+  ShareIcon,
+  HistoryIcon,
+  MaximizeIcon,
+  MinimizeIcon,
+  DownloadIcon,
+  SvgIcon,
+  SplitIcon,
+  SwapIcon,
+  CheckIcon,
+  CopyIcon,
+} from './icons';
 import { ShareModal } from './ShareModal';
 import { downloadHighResPng, downloadScalableSvg } from '../utils/logoExport';
 
@@ -24,12 +38,37 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   onDelete,
   onClearAll,
 }) => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'split'>('grid');
   const [filterMode, setFilterMode] = useState<'all' | 'logos' | 'videos'>('all');
   const [isExpanded, setIsExpanded] = useState(false);
-  const [shareItem, setShareItem] = useState<HistoryItem | null | undefined>(undefined); 
-  // undefined = share modal closed, null = share full gallery, HistoryItem = share specific item
+  const [shareItem, setShareItem] = useState<HistoryItem | null | undefined>(undefined);
   const [previewVideoItem, setPreviewVideoItem] = useState<HistoryItem | null>(null);
+
+  // Split-Screen comparison states
+  const [slotAId, setSlotAId] = useState<string | null>(null);
+  const [slotBId, setSlotBId] = useState<string | null>(null);
+  const [splitBgMode, setSplitBgMode] = useState<'checkered' | 'white' | 'dark'>('checkered');
+  const [copiedHex, setCopiedHex] = useState<string | null>(null);
+
+  // Initialize and synchronize Slot A and Slot B
+  useEffect(() => {
+    if (items.length > 0) {
+      if (!slotAId || !items.some((i) => i.id === slotAId)) {
+        setSlotAId(activeId && items.some((i) => i.id === activeId) ? activeId : items[0].id);
+      }
+    }
+  }, [items, activeId, slotAId]);
+
+  useEffect(() => {
+    if (items.length > 1) {
+      if (!slotBId || !items.some((i) => i.id === slotBId) || slotBId === slotAId) {
+        const candidate = items.find((i) => i.id !== slotAId);
+        if (candidate) {
+          setSlotBId(candidate.id);
+        }
+      }
+    }
+  }, [items, slotAId, slotBId]);
 
   // Lock body scrolling when gallery is open so page behind doesn't jump
   useEffect(() => {
@@ -61,6 +100,55 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
     return true;
   });
 
+  const handleSwapSlots = () => {
+    const temp = slotAId;
+    setSlotAId(slotBId);
+    setSlotBId(temp);
+  };
+
+  const handleOpenCompareWith = (item: HistoryItem) => {
+    if (slotAId && slotAId !== item.id) {
+      setSlotBId(item.id);
+    } else {
+      setSlotAId(item.id);
+      const second = items.find((i) => i.id !== item.id);
+      if (second) setSlotBId(second.id);
+    }
+    setViewMode('split');
+    if (!isExpanded && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      setIsExpanded(true);
+    }
+  };
+
+  const handleCopyHex = (hex: string) => {
+    navigator.clipboard.writeText(hex);
+    setCopiedHex(hex);
+    setTimeout(() => setCopiedHex(null), 2000);
+  };
+
+  const getSplitCanvasBg = (): React.CSSProperties => {
+    switch (splitBgMode) {
+      case 'white':
+        return { backgroundColor: '#FFFFFF' };
+      case 'dark':
+        return { backgroundColor: '#0F172A' };
+      default:
+        return {
+          backgroundImage:
+            'radial-gradient(#CBD5E1 1px, transparent 1px), radial-gradient(#CBD5E1 1px, #F8FAFC 1px)',
+          backgroundSize: '16px 16px',
+          backgroundPosition: '0 0, 8px 8px',
+        };
+    }
+  };
+
+  const itemA = items.find((i) => i.id === slotAId) || items[0] || null;
+  const itemB =
+    items.find((i) => i.id === slotBId) ||
+    items.find((i) => i.id !== itemA?.id) ||
+    items[1] ||
+    null;
+
   return (
     <>
       <AnimatePresence>
@@ -82,7 +170,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className={`fixed top-0 bottom-0 bg-white shadow-2xl z-50 flex flex-col text-slate-900 transition-all duration-300 ease-in-out ${
-                isExpanded
+                isExpanded || viewMode === 'split'
                   ? 'inset-0 left-0 right-0 w-full h-full max-w-full'
                   : 'right-0 w-full max-w-md sm:max-w-xl lg:max-w-2xl border-l border-slate-200'
               }`}
@@ -99,7 +187,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* View Mode Toggle */}
+                    {/* View Mode Toggle: Grid | List | Split */}
                     <div className="flex items-center bg-slate-200/80 border border-slate-300 rounded-lg p-0.5">
                       <button
                         onClick={() => setViewMode('grid')}
@@ -123,14 +211,31 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                       >
                         List
                       </button>
+                      <button
+                        onClick={() => {
+                          setViewMode('split');
+                          if (!isExpanded && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                            setIsExpanded(true);
+                          }
+                        }}
+                        className={`px-2 py-1 rounded text-xs font-mono font-bold transition-colors flex items-center gap-1 ${
+                          viewMode === 'split'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                        title="Split-Screen Comparison View"
+                      >
+                        <SplitIcon className="w-3.5 h-3.5" />
+                        <span>Split Compare</span>
+                      </button>
                     </div>
 
                     {/* Expand / Minimize Fullscreen Toggle */}
                     <button
                       onClick={() => setIsExpanded(!isExpanded)}
                       className="text-slate-600 hover:text-emerald-700 p-1.5 rounded-lg hover:bg-slate-200 transition-colors focus:outline-none flex items-center gap-1 text-xs font-mono font-bold bg-slate-200/60 border border-slate-300"
-                      title={isExpanded ? "Collapse to Sidebar" : "Expand to Full Page Gallery"}
-                      aria-label={isExpanded ? "Collapse Gallery" : "Expand Gallery"}
+                      title={isExpanded ? 'Collapse to Sidebar' : 'Expand to Full Page Gallery'}
+                      aria-label={isExpanded ? 'Collapse Gallery' : 'Expand Gallery'}
                     >
                       {isExpanded ? (
                         <>
@@ -190,8 +295,8 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 </div>
               </div>
 
-              {/* List / Grid Container */}
-              <div className="flex-1 overflow-y-auto p-4">
+              {/* Main Content: Split / Grid / List */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5">
                 {filteredItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
                     <span className="text-5xl mb-3">{filterMode === 'videos' ? '🎬' : '✨'}</span>
@@ -204,12 +309,685 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                         : 'Create new logos or 25-variation batches to populate your Session Creations Gallery.'}
                     </p>
                   </div>
+                ) : viewMode === 'split' ? (
+                  /* SPLIT-SCREEN VIEW MODE */
+                  items.length < 2 || !itemA || !itemB ? (
+                    <div className="h-full min-h-[360px] flex flex-col items-center justify-center text-center p-8 bg-slate-50/80 rounded-2xl border border-slate-200">
+                      <div className="w-16 h-16 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-3xl mb-4 shadow-xs">
+                        <SplitIcon className="w-8 h-8 text-emerald-700" />
+                      </div>
+                      <h3 className="font-mono font-bold text-base text-slate-800 mb-2">
+                        Side-by-Side Logo Comparison
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 max-w-md leading-relaxed mb-5">
+                        Split-Screen comparison requires at least 2 saved logo creations. Generate another logo concept or click "Create 25 Variations Pack" to compare designs and their metadata side-by-side!
+                      </p>
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-xs rounded-xl shadow-xs transition-colors"
+                      >
+                        Return to Grid View
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-5 max-w-7xl mx-auto">
+                      {/* Top Strip: Quick Selector Filmstrip & Background Controls */}
+                      <div className="bg-slate-100/90 border border-slate-200 rounded-2xl p-3.5 shadow-2xs">
+                        <div className="flex items-center justify-between flex-wrap gap-2.5 mb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold text-slate-800 flex items-center gap-1.5">
+                              <SplitIcon className="w-4 h-4 text-emerald-600" /> Select Variations to Compare
+                            </span>
+                            <span className="text-[11px] font-sans text-slate-500 hidden sm:inline">
+                              Assign any design to Slot A or Slot B below
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleSwapSlots}
+                              className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 flex items-center gap-1.5 transition-colors shadow-2xs"
+                              title="Swap Logo A and Logo B positions"
+                            >
+                              <SwapIcon className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Swap A ⇄ B</span>
+                            </button>
+
+                            {/* Canvas Stage Background Selector */}
+                            <div className="flex items-center bg-white border border-slate-300 rounded-lg p-0.5 text-[10px] font-mono font-bold shadow-2xs">
+                              <button
+                                onClick={() => setSplitBgMode('checkered')}
+                                className={`px-2 py-0.5 rounded transition-colors ${
+                                  splitBgMode === 'checkered'
+                                    ? 'bg-slate-900 text-white'
+                                    : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                                title="Transparent Grid Pattern"
+                              >
+                                Pattern
+                              </button>
+                              <button
+                                onClick={() => setSplitBgMode('white')}
+                                className={`px-2 py-0.5 rounded transition-colors ${
+                                  splitBgMode === 'white'
+                                    ? 'bg-slate-900 text-white'
+                                    : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                                title="White Background"
+                              >
+                                White
+                              </button>
+                              <button
+                                onClick={() => setSplitBgMode('dark')}
+                                className={`px-2 py-0.5 rounded transition-colors ${
+                                  splitBgMode === 'dark'
+                                    ? 'bg-slate-900 text-white'
+                                    : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                                title="Dark Slate Background"
+                              >
+                                Dark
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Thumbnail Carousel Picker */}
+                        <div className="flex gap-2.5 overflow-x-auto pb-1.5 pt-0.5">
+                          {filteredItems.map((item) => {
+                            const isA = item.id === itemA.id;
+                            const isB = item.id === itemB.id;
+                            const itemStyleName =
+                              LOGO_STYLES.find((s) => s.id === item.style)?.name || item.style;
+
+                            return (
+                              <div
+                                key={item.id}
+                                className={`relative flex-shrink-0 group rounded-xl border p-1 transition-all cursor-pointer ${
+                                  isA
+                                    ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/40 shadow-xs'
+                                    : isB
+                                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/40 shadow-xs'
+                                    : 'border-slate-300 bg-white hover:border-slate-400'
+                                }`}
+                                title={`${itemStyleName}: ${item.prompt}`}
+                              >
+                                <div
+                                  className="w-14 h-14 rounded-lg bg-white overflow-hidden flex items-center justify-center p-1"
+                                  onClick={() => {
+                                    if (!isA && !isB) {
+                                      setSlotBId(item.id);
+                                    }
+                                  }}
+                                >
+                                  <img
+                                    src={`data:${item.logo.mimeType};base64,${item.logo.base64}`}
+                                    alt={item.prompt}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                </div>
+
+                                {/* Slot Badges */}
+                                {isA && (
+                                  <span className="absolute -top-1.5 -left-1.5 bg-emerald-600 text-white font-mono font-bold text-[9px] px-1.5 py-0.2 rounded-full shadow-xs">
+                                    Slot A
+                                  </span>
+                                )}
+                                {isB && (
+                                  <span className="absolute -top-1.5 -left-1.5 bg-indigo-600 text-white font-mono font-bold text-[9px] px-1.5 py-0.2 rounded-full shadow-xs">
+                                    Slot B
+                                  </span>
+                                )}
+
+                                {/* Hover action overlay */}
+                                <div className="absolute inset-0 bg-slate-900/80 rounded-xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity p-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSlotAId(item.id);
+                                    }}
+                                    className="w-full text-[9px] font-mono font-bold bg-emerald-600 hover:bg-emerald-500 text-white py-0.5 rounded shadow-2xs"
+                                  >
+                                    Set A
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSlotBId(item.id);
+                                    }}
+                                    className="w-full text-[9px] font-mono font-bold bg-indigo-600 hover:bg-indigo-500 text-white py-0.5 rounded shadow-2xs"
+                                  >
+                                    Set B
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* High-level Diff & Contrast Analysis Card */}
+                      {(() => {
+                        const styleA =
+                          LOGO_STYLES.find((s) => s.id === itemA.style)?.name || itemA.style;
+                        const styleB =
+                          LOGO_STYLES.find((s) => s.id === itemB.style)?.name || itemB.style;
+                        const sameStyle = itemA.style === itemB.style;
+                        const palA = itemA.logo.palettes?.[0];
+                        const palB = itemB.logo.palettes?.[0];
+                        const sameTheory =
+                          palA?.theoryType &&
+                          palB?.theoryType &&
+                          palA.theoryType.toLowerCase() === palB.theoryType.toLowerCase();
+
+                        return (
+                          <div className="bg-white border border-slate-200 rounded-2xl p-3.5 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-800">Metadata Comparison:</span>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
+                                  sameStyle
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                }`}
+                              >
+                                {sameStyle
+                                  ? `Style Match: ${styleA}`
+                                  : `Style Diff: ${styleA} vs ${styleB}`}
+                              </span>
+                              <span
+                                className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${
+                                  sameTheory
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                }`}
+                              >
+                                {palA?.theoryType && palB?.theoryType
+                                  ? sameTheory
+                                    ? `Harmony Match: ${palA.theoryType}`
+                                    : `Harmony Diff: ${palA.theoryType} vs ${palB.theoryType}`
+                                  : 'Color Harmonies Compared'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-[11px] text-slate-500 font-mono">
+                              <span>
+                                Weight: {Math.round((itemA.logo.base64.length * 0.75) / 1024)} KB vs{' '}
+                                {Math.round((itemB.logo.base64.length * 0.75) / 1024)} KB
+                              </span>
+                              <span>·</span>
+                              <span>
+                                Motion: {itemA.video ? '🎬 Veo Video' : 'Static'} vs{' '}
+                                {itemB.video ? '🎬 Veo Video' : 'Static'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Dual-Column Split Screen Stage & Detailed Metadata */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+                        {/* LEFT COLUMN: LOGO A */}
+                        <div className="bg-white border-2 border-emerald-400/80 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-4">
+                          {/* Column Header */}
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-emerald-600 text-white font-mono font-bold text-xs px-2.5 py-1 rounded-lg shadow-2xs">
+                                Logo A
+                              </span>
+                              {itemA.id === activeId ? (
+                                <span className="bg-emerald-100 text-emerald-800 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                                  <CheckIcon className="w-3 h-3 text-emerald-600" /> Active in Studio
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => onSelect(itemA)}
+                                  className="text-[11px] font-mono font-bold text-slate-700 hover:text-emerald-700 bg-slate-100 hover:bg-emerald-50 border border-slate-200 px-2 py-0.5 rounded-md transition-colors"
+                                >
+                                  Set as Active
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Actions: Download HD PNG & SVG, Share */}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  const styleName =
+                                    LOGO_STYLES.find((s) => s.id === itemA.style)?.name || itemA.style;
+                                  downloadHighResPng(itemA.logo.base64, itemA.logo.mimeType, 2048, {
+                                    styleName,
+                                    filename: `logo-go-slot-a-${itemA.style}-2k.png`,
+                                  });
+                                }}
+                                className="p-1.5 text-slate-700 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 border border-slate-200 transition-colors"
+                                title="Download 2K HD PNG"
+                                aria-label="Download HD PNG"
+                              >
+                                <DownloadIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const styleName =
+                                    LOGO_STYLES.find((s) => s.id === itemA.style)?.name || itemA.style;
+                                  downloadScalableSvg(itemA.logo.base64, itemA.logo.mimeType, 'vector-embed', {
+                                    styleName,
+                                    filename: `logo-go-slot-a-${itemA.style}.svg`,
+                                  });
+                                }}
+                                className="p-1.5 text-slate-700 hover:text-amber-700 rounded-lg hover:bg-amber-50 border border-slate-200 transition-colors"
+                                title="Download Scalable Vector SVG"
+                                aria-label="Download Scalable SVG"
+                              >
+                                <SvgIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setShareItem(itemA)}
+                                className="p-1.5 text-slate-700 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 border border-slate-200 transition-colors"
+                                title="Share Logo A"
+                                aria-label="Share design"
+                              >
+                                <ShareIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Quick Switch Dropdown */}
+                          <div className="flex items-center gap-2 text-xs font-mono">
+                            <span className="text-slate-500 font-bold">Switch Selection:</span>
+                            <select
+                              value={itemA.id}
+                              onChange={(e) => setSlotAId(e.target.value)}
+                              className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 truncate"
+                            >
+                              {filteredItems.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  [{LOGO_STYLES.find((s) => s.id === item.style)?.name || item.style}] {item.prompt}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Visual Display Stage */}
+                          <div
+                            style={getSplitCanvasBg()}
+                            className="w-full aspect-square rounded-2xl border border-slate-200 flex items-center justify-center p-6 relative overflow-hidden shadow-inner group"
+                          >
+                            <img
+                              src={`data:${itemA.logo.mimeType};base64,${itemA.logo.base64}`}
+                              alt={itemA.prompt}
+                              className="max-w-full max-h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
+                            />
+
+                            {/* Motion Video Play overlay */}
+                            {itemA.video && (
+                              <button
+                                onClick={() => setPreviewVideoItem(itemA)}
+                                className="absolute bottom-3 right-3 bg-emerald-600 hover:bg-emerald-700 text-white p-2.5 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center gap-1.5"
+                                title="Play Motion Video"
+                              >
+                                <VideoIcon className="w-4 h-4 text-white" />
+                                <span className="text-[10px] font-mono font-bold pr-1">Play Video</span>
+                              </button>
+                            )}
+
+                            {itemA.logo.referenceImage && (
+                              <div
+                                className="absolute top-3 right-3 bg-slate-900/80 text-emerald-400 px-2 py-1 rounded-md text-[10px] font-mono font-bold flex items-center gap-1"
+                                title="Generated using reference image"
+                              >
+                                <span>🖼️ Reference Image</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Detailed Metadata Breakdown for Logo A */}
+                          <div className="space-y-3.5 pt-1">
+                            {/* Concept & Prompt */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                                Prompt & Concept
+                              </span>
+                              <p className="text-xs font-sans font-medium text-slate-800 leading-relaxed">
+                                {itemA.prompt}
+                              </p>
+                            </div>
+
+                            {/* Style & Aesthetic Archetype */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                                  Design Style
+                                </span>
+                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200">
+                                  {LOGO_STYLES.find((s) => s.id === itemA.style)?.name || itemA.style}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600 font-sans">
+                                {LOGO_STYLES.find((s) => s.id === itemA.style)?.description ||
+                                  'Custom aesthetic parameters'}
+                              </p>
+                            </div>
+
+                            {/* Color Theory & Swatches */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                                  Color Theory Palette
+                                </span>
+                                {itemA.logo.palettes?.[0]?.theoryType && (
+                                  <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded">
+                                    {itemA.logo.palettes[0].theoryType}
+                                  </span>
+                                )}
+                              </div>
+
+                              {itemA.logo.palettes?.[0] ? (
+                                <>
+                                  <p className="text-xs font-bold text-slate-800 mb-1">
+                                    {itemA.logo.palettes[0].themeName}
+                                  </p>
+                                  <p className="text-[11px] text-slate-600 leading-snug mb-2.5">
+                                    {itemA.logo.palettes[0].description}
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {itemA.logo.palettes[0].colors.map((c, idx) => (
+                                      <button
+                                        key={idx}
+                                        onClick={() => handleCopyHex(c.hex)}
+                                        className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 hover:border-slate-400 transition-colors shadow-2xs group"
+                                        title={`Click to copy ${c.hex} (${c.name})`}
+                                      >
+                                        <span
+                                          className="w-3.5 h-3.5 rounded-md border border-slate-300"
+                                          style={{ backgroundColor: c.hex }}
+                                        />
+                                        <span className="font-mono text-[10px] text-slate-700 font-bold">
+                                          {copiedHex === c.hex ? 'Copied!' : c.hex}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <p className="text-xs text-slate-500 italic">
+                                  Default monochromatic vector formulation
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Technical Specifications */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                                Technical Specifications
+                              </span>
+                              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-700">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">EXPORT RESOLUTION</span>
+                                  2048 × 2048 px
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">PAYLOAD SIZE</span>
+                                  {Math.round((itemA.logo.base64.length * 0.75) / 1024)} KB
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">MIME FORMAT</span>
+                                  {itemA.logo.mimeType}
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">MOTION STATUS</span>
+                                  {itemA.video ? 'Veo MP4 Attached' : 'Static Vector'}
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-slate-400 block text-[10px]">GENERATED AT</span>
+                                  {new Date(itemA.timestamp).toLocaleString([], {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* RIGHT COLUMN: LOGO B */}
+                        <div className="bg-white border-2 border-indigo-400/80 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col gap-4">
+                          {/* Column Header */}
+                          <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-indigo-600 text-white font-mono font-bold text-xs px-2.5 py-1 rounded-lg shadow-2xs">
+                                Logo B
+                              </span>
+                              {itemB.id === activeId ? (
+                                <span className="bg-indigo-100 text-indigo-800 font-mono font-bold text-[10px] px-2 py-0.5 rounded-md border border-indigo-200 flex items-center gap-1">
+                                  <CheckIcon className="w-3 h-3 text-indigo-600" /> Active in Studio
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => onSelect(itemB)}
+                                  className="text-[11px] font-mono font-bold text-slate-700 hover:text-indigo-700 bg-slate-100 hover:bg-indigo-50 border border-slate-200 px-2 py-0.5 rounded-md transition-colors"
+                                >
+                                  Set as Active
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Actions: Download HD PNG & SVG, Share */}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  const styleName =
+                                    LOGO_STYLES.find((s) => s.id === itemB.style)?.name || itemB.style;
+                                  downloadHighResPng(itemB.logo.base64, itemB.logo.mimeType, 2048, {
+                                    styleName,
+                                    filename: `logo-go-slot-b-${itemB.style}-2k.png`,
+                                  });
+                                }}
+                                className="p-1.5 text-slate-700 hover:text-indigo-700 rounded-lg hover:bg-indigo-50 border border-slate-200 transition-colors"
+                                title="Download 2K HD PNG"
+                                aria-label="Download HD PNG"
+                              >
+                                <DownloadIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const styleName =
+                                    LOGO_STYLES.find((s) => s.id === itemB.style)?.name || itemB.style;
+                                  downloadScalableSvg(itemB.logo.base64, itemB.logo.mimeType, 'vector-embed', {
+                                    styleName,
+                                    filename: `logo-go-slot-b-${itemB.style}.svg`,
+                                  });
+                                }}
+                                className="p-1.5 text-slate-700 hover:text-amber-700 rounded-lg hover:bg-amber-50 border border-slate-200 transition-colors"
+                                title="Download Scalable Vector SVG"
+                                aria-label="Download Scalable SVG"
+                              >
+                                <SvgIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setShareItem(itemB)}
+                                className="p-1.5 text-slate-700 hover:text-indigo-700 rounded-lg hover:bg-indigo-50 border border-slate-200 transition-colors"
+                                title="Share Logo B"
+                                aria-label="Share design"
+                              >
+                                <ShareIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Quick Switch Dropdown */}
+                          <div className="flex items-center gap-2 text-xs font-mono">
+                            <span className="text-slate-500 font-bold">Switch Selection:</span>
+                            <select
+                              value={itemB.id}
+                              onChange={(e) => setSlotBId(e.target.value)}
+                              className="flex-1 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 truncate"
+                            >
+                              {filteredItems.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  [{LOGO_STYLES.find((s) => s.id === item.style)?.name || item.style}] {item.prompt}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Visual Display Stage */}
+                          <div
+                            style={getSplitCanvasBg()}
+                            className="w-full aspect-square rounded-2xl border border-slate-200 flex items-center justify-center p-6 relative overflow-hidden shadow-inner group"
+                          >
+                            <img
+                              src={`data:${itemB.logo.mimeType};base64,${itemB.logo.base64}`}
+                              alt={itemB.prompt}
+                              className="max-w-full max-h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-300"
+                            />
+
+                            {/* Motion Video Play overlay */}
+                            {itemB.video && (
+                              <button
+                                onClick={() => setPreviewVideoItem(itemB)}
+                                className="absolute bottom-3 right-3 bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center gap-1.5"
+                                title="Play Motion Video"
+                              >
+                                <VideoIcon className="w-4 h-4 text-white" />
+                                <span className="text-[10px] font-mono font-bold pr-1">Play Video</span>
+                              </button>
+                            )}
+
+                            {itemB.logo.referenceImage && (
+                              <div
+                                className="absolute top-3 right-3 bg-slate-900/80 text-emerald-400 px-2 py-1 rounded-md text-[10px] font-mono font-bold flex items-center gap-1"
+                                title="Generated using reference image"
+                              >
+                                <span>🖼️ Reference Image</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Detailed Metadata Breakdown for Logo B */}
+                          <div className="space-y-3.5 pt-1">
+                            {/* Concept & Prompt */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                                Prompt & Concept
+                              </span>
+                              <p className="text-xs font-sans font-medium text-slate-800 leading-relaxed">
+                                {itemB.prompt}
+                              </p>
+                            </div>
+
+                            {/* Style & Aesthetic Archetype */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                                  Design Style
+                                </span>
+                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200">
+                                  {LOGO_STYLES.find((s) => s.id === itemB.style)?.name || itemB.style}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600 font-sans">
+                                {LOGO_STYLES.find((s) => s.id === itemB.style)?.description ||
+                                  'Custom aesthetic parameters'}
+                              </p>
+                            </div>
+
+                            {/* Color Theory & Swatches */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                                  Color Theory Palette
+                                </span>
+                                {itemB.logo.palettes?.[0]?.theoryType && (
+                                  <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded">
+                                    {itemB.logo.palettes[0].theoryType}
+                                  </span>
+                                )}
+                              </div>
+
+                              {itemB.logo.palettes?.[0] ? (
+                                <>
+                                  <p className="text-xs font-bold text-slate-800 mb-1">
+                                    {itemB.logo.palettes[0].themeName}
+                                  </p>
+                                  <p className="text-[11px] text-slate-600 leading-snug mb-2.5">
+                                    {itemB.logo.palettes[0].description}
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {itemB.logo.palettes[0].colors.map((c, idx) => (
+                                      <button
+                                        key={idx}
+                                        onClick={() => handleCopyHex(c.hex)}
+                                        className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 hover:border-slate-400 transition-colors shadow-2xs group"
+                                        title={`Click to copy ${c.hex} (${c.name})`}
+                                      >
+                                        <span
+                                          className="w-3.5 h-3.5 rounded-md border border-slate-300"
+                                          style={{ backgroundColor: c.hex }}
+                                        />
+                                        <span className="font-mono text-[10px] text-slate-700 font-bold">
+                                          {copiedHex === c.hex ? 'Copied!' : c.hex}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              ) : (
+                                <p className="text-xs text-slate-500 italic">
+                                  Default monochromatic vector formulation
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Technical Specifications */}
+                            <div className="bg-slate-50/90 rounded-xl p-3 border border-slate-200">
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block mb-2">
+                                Technical Specifications
+                              </span>
+                              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-700">
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">EXPORT RESOLUTION</span>
+                                  2048 × 2048 px
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">PAYLOAD SIZE</span>
+                                  {Math.round((itemB.logo.base64.length * 0.75) / 1024)} KB
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">MIME FORMAT</span>
+                                  {itemB.logo.mimeType}
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block text-[10px]">MOTION STATUS</span>
+                                  {itemB.video ? 'Veo MP4 Attached' : 'Static Vector'}
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-slate-400 block text-[10px]">GENERATED AT</span>
+                                  {new Date(itemB.timestamp).toLocaleString([], {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
                 ) : viewMode === 'grid' ? (
                   /* GRID VIEW */
-                  <div className={isExpanded ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5" : "grid grid-cols-2 gap-4"}>
+                  <div
+                    className={
+                      isExpanded
+                        ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5'
+                        : 'grid grid-cols-2 gap-4'
+                    }
+                  >
                     {filteredItems.map((item) => {
                       const isSelected = item.id === activeId;
-                      const styleName = LOGO_STYLES.find((s) => s.id === item.style)?.name || item.style;
+                      const styleName =
+                        LOGO_STYLES.find((s) => s.id === item.style)?.name || item.style;
                       const paletteColors = item.logo.palettes?.[0]?.colors || [];
 
                       return (
@@ -254,7 +1032,10 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                             )}
 
                             {item.logo.referenceImage && (
-                              <div className="absolute top-1.5 right-1.5 bg-slate-900/80 text-emerald-400 px-1.5 py-0.5 rounded text-xs" title="Enhanced from reference image">
+                              <div
+                                className="absolute top-1.5 right-1.5 bg-slate-900/80 text-emerald-400 px-1.5 py-0.5 rounded text-xs"
+                                title="Enhanced from reference image"
+                              >
                                 🖼️
                               </div>
                             )}
@@ -293,8 +1074,20 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                             )}
                           </div>
 
-                          {/* Card Action Overlay Buttons: Download PNG/SVG, Share & Delete */}
+                          {/* Card Action Overlay Buttons */}
                           <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* Compare in Split Screen */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenCompareWith(item);
+                              }}
+                              className="p-1.5 text-slate-700 hover:text-indigo-700 rounded-lg bg-white/95 hover:bg-indigo-50 border border-slate-200 shadow-xs transition-colors"
+                              aria-label="Compare in Split Screen"
+                              title="Compare in Split Screen"
+                            >
+                              <SplitIcon className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -352,10 +1145,17 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                   </div>
                 ) : (
                   /* LIST VIEW */
-                  <div className={isExpanded ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-3"}>
+                  <div
+                    className={
+                      isExpanded
+                        ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'
+                        : 'space-y-3'
+                    }
+                  >
                     {filteredItems.map((item) => {
                       const isSelected = item.id === activeId;
-                      const styleName = LOGO_STYLES.find((s) => s.id === item.style)?.name || item.style;
+                      const styleName =
+                        LOGO_STYLES.find((s) => s.id === item.style)?.name || item.style;
                       const dateStr = new Date(item.timestamp).toLocaleTimeString([], {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -397,7 +1197,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                           </div>
 
                           {/* Details */}
-                          <div className="flex-grow min-w-0 pr-16 flex flex-col justify-between">
+                          <div className="flex-grow min-w-0 pr-20 flex flex-col justify-between">
                             <div>
                               <div className="flex items-center justify-between mb-1 gap-2">
                                 <span className="text-xs font-mono text-slate-400">{dateStr}</span>
@@ -418,8 +1218,19 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                             </div>
                           </div>
 
-                          {/* Action Buttons: Download PNG/SVG, Share & Delete */}
+                          {/* Action Buttons */}
                           <div className="absolute right-2.5 top-3 flex items-center gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenCompareWith(item);
+                              }}
+                              className="p-1.5 text-slate-600 hover:text-indigo-700 rounded-lg hover:bg-indigo-50 border border-slate-200 transition-colors"
+                              aria-label="Compare in Split Screen"
+                              title="Compare in Split Screen"
+                            >
+                              <SplitIcon className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

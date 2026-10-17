@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 
 .vscode/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.history/
+.aistudio/

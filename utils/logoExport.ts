@@ -16,6 +16,7 @@ export interface ExportOptions {
   customBgHex?: string;
   customTintHex?: string;
   transparentBackground?: boolean;
+  rawSvgContent?: string;
 }
 
 /**
@@ -186,6 +187,39 @@ export const downloadScalableSvg = async (
   options: ExportOptions = {}
 ): Promise<void> => {
   return new Promise((resolve, reject) => {
+    // If raw pristine SVG content is available, export directly
+    if (options.rawSvgContent && options.rawSvgContent.trim().startsWith('<svg')) {
+      try {
+        let finalSvg = options.rawSvgContent.trim();
+        const isTransparent = options.transparentBackground ?? (options.bgMode === 'transparent' || !options.bgMode);
+        let bgColor = '';
+        if (!isTransparent) {
+          if (options.bgMode === 'cream') bgColor = '#FEFAE0';
+          else if (options.bgMode === 'dark') bgColor = '#0F172A';
+          else if (options.bgMode === 'emerald') bgColor = '#022C22';
+          else if (options.bgMode === 'custom' && options.customBgHex) bgColor = options.customBgHex;
+          else bgColor = '#FFFFFF';
+
+          if (!finalSvg.includes('<rect') && bgColor) {
+            finalSvg = finalSvg.replace(/<svg([^>]*)>/i, `<svg$1>\n  <rect width="100%" height="100%" fill="${bgColor}" />`);
+          }
+        }
+        const blob = new Blob([finalSvg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const styleTag = options.styleName ? options.styleName.toLowerCase().replace(/\s+/g, '-') : 'logo';
+        link.download = options.filename || `logo-go-${styleTag}-vector.svg`;
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        return resolve();
+      } catch (err) {
+        console.warn('Direct raw SVG download encountered error, falling back to canvas vector packaging:', err);
+      }
+    }
+
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.src = `data:${mimeType};base64,${base64Data}`;

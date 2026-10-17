@@ -25,6 +25,7 @@ export interface LogoData {
   style?: string;
   palettes?: ColorPalette[];
   referenceImage?: ReferenceImage | null;
+  svgContent?: string;
 }
 
 export interface VideoData {
@@ -32,6 +33,8 @@ export interface VideoData {
   // We will fetch the video as a blob URL for display
   blobUrl?: string; 
   size?: number;
+  mimeType?: string;
+  base64?: string;
 }
 
 export interface ApiError {

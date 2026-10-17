@@ -1,20 +1,46 @@
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
-import { LogoData, ColorPalette, ReferenceImage } from "../types";
+import { LogoData, ColorPalette, ReferenceImage, VideoData, LogoStyleId } from "../types";
 
 export const getApiKey = (): string => {
   if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GOOGLE_API_KEY');
-    if (stored && stored.trim()) return stored.trim();
-  }
-  const envKey = process.env.GEMINI_API_KEY || process.env.API_KEY || (process.env as any).GOOGLE_API_KEY;
-  if (envKey && envKey.trim() && envKey !== 'undefined') {
-    return envKey.trim();
-  }
-  return 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE';
-};
+    // 1. Check window-injected key from Vite transform
+    const winKey = (window as any).__GEMINI_API_KEY__;
+    if (winKey && typeof winKey === 'string' && winKey.trim() && winKey !== 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
+      return winKey.trim();
+    }
 
-const API_KEY = getApiKey();
+    // 2. Check localStorage, cleaning up obsolete/depleted keys
+    try {
+      const stored = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GOOGLE_API_KEY');
+      if (stored) {
+        const clean = stored.trim();
+        if (clean === 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
+          localStorage.removeItem('GEMINI_API_KEY');
+          localStorage.removeItem('GOOGLE_API_KEY');
+        } else if (clean.length > 5) {
+          return clean;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 3. Check environment safely
+  try {
+    const envKey = typeof process !== 'undefined' && process.env
+      ? (process.env.GEMINI_API_KEY || process.env.API_KEY || (process.env as any).GOOGLE_API_KEY)
+      : undefined;
+    if (envKey && envKey.trim() && envKey !== 'undefined' && envKey.trim() !== 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
+      return envKey.trim();
+    }
+  } catch {
+    // ignore
+  }
+
+  return '';
+};
 
 /**
  * Generates a list of prompt suggestions to enhance the user's initial idea.
@@ -23,44 +49,26 @@ export const generatePromptSuggestions = async (prompt: string): Promise<string[
   if (!prompt.trim()) return [];
   try {
     const ai = new GoogleGenAI({ apiKey: getApiKey() });
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 3-4 short, creative keywords, taglines, or style modifiers they could add (e.g., "Mission: 'Pioneer sustainable tech'", "Impression: sleek & confident", "Colors: Emerald & charcoal", "Person: A.R."). Return only a JSON array of strings.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.STRING
-            }
-          },
-          temperature: 0.8,
-        }
-      });
-    } catch {
-      response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 3-4 short, creative keywords, taglines, or style modifiers they could add (e.g., "Mission: 'Pioneer sustainable tech'", "Impression: sleek & confident", "Colors: Emerald & charcoal", "Person: A.R."). Return only a JSON array of strings.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.STRING
-            }
-          },
-          temperature: 0.8,
-        }
-      });
-    }
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: `Based on the user's logo prompt or brand details "${prompt}", suggest 3-4 short, creative keywords, taglines, or style modifiers they could add (e.g., "Mission: 'Pioneer sustainable tech'", "Impression: sleek & confident", "Colors: Emerald & charcoal", "Person: A.R."). Return only a JSON array of strings.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.STRING
+          }
+        },
+        temperature: 0.8,
+      }
+    });
 
     const jsonText = response.text.trim();
     const suggestions = JSON.parse(jsonText);
     return Array.isArray(suggestions) ? suggestions.slice(0, 4) : [];
-  } catch (error) {
-    // Graceful fallback suggestions on 429 quota error or network failure
+  } catch {
+    // Graceful fallback suggestions on quota/credit depletion or network failure
     const lower = prompt.toLowerCase();
     const fallbacks: string[] = [];
     if (!lower.includes("mission")) fallbacks.push(`Mission: "Pioneer innovation & excellence"`);
@@ -74,6 +82,99 @@ export const generatePromptSuggestions = async (prompt: string): Promise<string[
 
 
 /**
+ * Renders an SVG string onto an offscreen canvas and returns a high-resolution PNG base64 string.
+ */
+const svgToPngBase64 = (svgString: string, size = 1024): Promise<string> => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      try {
+        const base64 = btoa(unescape(encodeURIComponent(svgString)));
+        return resolve(base64);
+      } catch {
+        return resolve('');
+      }
+    }
+    const img = new Image();
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          const base64 = btoa(unescape(encodeURIComponent(svgString)));
+          return resolve(base64);
+        }
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        const dataUrl = canvas.toDataURL('image/png');
+        const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+        resolve(base64);
+      } catch {
+        URL.revokeObjectURL(url);
+        try {
+          const base64 = btoa(unescape(encodeURIComponent(svgString)));
+          resolve(base64);
+        } catch {
+          resolve('');
+        }
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const base64 = btoa(unescape(encodeURIComponent(svgString)));
+        resolve(base64);
+      } catch {
+        resolve('');
+      }
+    };
+    img.src = url;
+  });
+};
+
+export const generateSvgVectorLogo = async (
+  prompt: string,
+  styleId?: string,
+  referenceImage?: ReferenceImage | null,
+  aiClient?: GoogleGenAI
+): Promise<LogoData> => {
+  const currentKey = getApiKey();
+  const ai = aiClient || new GoogleGenAI({ apiKey: currentKey });
+  
+  const response = await ai.models.generateContent({
+    model: 'gemini-3.8-flash',
+    contents: `You are an elite master vector logo designer. Create a sleek, modern, professional vector logo in SVG format for: "${prompt}".
+Style requirement: ${styleId || 'modern vector'}.
+${referenceImage ? 'Incorporate and elevate the visual concept from the user reference image.' : ''}
+Output ONLY valid SVG markup starting with <svg and ending with </svg>.
+The SVG must have viewBox="0 0 512 512", width="512", height="512", beautiful balanced geometric composition, modern aesthetic color accents, and transparent background. Do not include markdown code blocks, backticks, or explanatory text.`,
+  });
+
+  const text = (response.text || '').trim();
+  const match = text.match(/<svg[\s\S]*?<\/svg>/i);
+  if (!match) {
+    throw new Error("Vector engine could not parse SVG markup.");
+  }
+
+  const svgMarkup = match[0];
+  const pngBase64 = await svgToPngBase64(svgMarkup);
+
+  return {
+    base64: pngBase64,
+    mimeType: 'image/png',
+    style: styleId,
+    referenceImage: referenceImage || null,
+    svgContent: svgMarkup,
+  };
+};
+
+/**
  * Generates a logo image based on a text prompt, optional style, and optional uploaded reference image to enhance.
  */
 export const generateLogo = async (
@@ -82,6 +183,9 @@ export const generateLogo = async (
   referenceImage?: ReferenceImage | null
 ): Promise<LogoData> => {
   const currentKey = getApiKey();
+  if (!currentKey) {
+    throw new Error("No Gemini API key found. Please ensure GEMINI_API_KEY is configured in your project settings.");
+  }
   const ai = new GoogleGenAI({ apiKey: currentKey });
 
   let styleInstruction = "A modern, high-quality vector-style logo";
@@ -127,17 +231,6 @@ export const generateLogo = async (
     let response;
     try {
       response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-image',
-        contents: {
-          parts: parts,
-        },
-        config: {
-          responseModalities: [Modality.IMAGE],
-        },
-      });
-    } catch (primaryErr: any) {
-      console.warn("Primary image model (gemini-3.1-flash-image) error, trying fallback model:", primaryErr);
-      response = await ai.models.generateContent({
         model: 'gemini-3.1-flash-lite-image',
         contents: {
           parts: parts,
@@ -146,6 +239,27 @@ export const generateLogo = async (
           responseModalities: [Modality.IMAGE],
         },
       });
+    } catch (primaryErr: any) {
+      console.warn("Primary image model (gemini-3.1-flash-lite-image) notice, trying fallback image model:", primaryErr);
+      try {
+        response = await ai.models.generateContent({
+          model: 'gemini-nano-banana-2.1',
+          contents: {
+            parts: parts,
+          },
+          config: {
+            responseModalities: [Modality.IMAGE],
+          },
+        });
+      } catch (secondaryErr: any) {
+        console.warn("Image model notice, generating vector logo engine with gemini-3.8-flash:", secondaryErr);
+        try {
+          return await generateSvgVectorLogo(prompt, styleId, referenceImage, ai);
+        } catch (svgErr) {
+          console.error("Vector fallback error:", svgErr);
+          throw secondaryErr;
+        }
+      }
     }
 
     const part = response?.candidates?.[0]?.content?.parts?.[0];
@@ -159,16 +273,29 @@ export const generateLogo = async (
       };
     }
 
-    throw new Error("Failed to generate logo. The model did not return an image.");
+    // If no inlineData, attempt SVG vector fallback
+    return await generateSvgVectorLogo(prompt, styleId, referenceImage, ai);
   } catch (error: any) {
     console.error("Logo generation error:", error);
     const errStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
     const msg = (error?.message || "").toLowerCase();
-    if (error?.status === 403 || errStr.includes('403') || errStr.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+    const statusCode = error?.status || error?.code || error?.error?.code;
+
+    if (statusCode === 403 || errStr.includes('403') || errStr.includes('PERMISSION_DENIED') || msg.includes('permission')) {
       throw new Error("API Permission Denied. Please ensure your Gemini API key has access to image generation models.");
     }
-    if (error?.status === 429 || errStr.includes('429') || errStr.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') || msg.includes('prepayment') || msg.includes('depleted') || msg.includes('credit')) {
-      throw new Error("Your Google AI Studio prepayment credits are depleted (HTTP 429). Please visit https://ai.studio/projects to manage billing and add credits.");
+    if (
+      statusCode === 402 || 
+      statusCode === 429 || 
+      errStr.includes('402') || 
+      errStr.includes('429') || 
+      errStr.includes('RESOURCE_EXHAUSTED') || 
+      msg.includes('quota') || 
+      msg.includes('prepayment') || 
+      msg.includes('depleted') || 
+      msg.includes('credit')
+    ) {
+      throw new Error("Your Google AI Studio prepayment credits are depleted. Please visit https://ai.studio/projects to manage billing and add credits.");
     }
     throw error;
   }
@@ -432,23 +559,28 @@ export const generate25LogoVariations = async (
   const BATCH_SIZE = 5;
   let criticalError: Error | null = null;
 
+  // Retrieve base color palettes once for this session to avoid 25 redundant network calls
+  let basePalettes: ColorPalette[] = DEFAULT_PALETTES;
+  try {
+    basePalettes = await generateColorPalettes(prompt, baseStyle, referenceImage);
+  } catch {
+    basePalettes = DEFAULT_PALETTES;
+  }
+
   for (let i = 0; i < variationModifiers.length; i += BATCH_SIZE) {
     if (criticalError) break;
     const chunk = variationModifiers.slice(i, i + BATCH_SIZE);
     const chunkPromises = chunk.map(async (mod) => {
       try {
         const fullPrompt = `${prompt} (${mod.tag})`;
-        const [logo, palettes] = await Promise.all([
-          generateLogo(fullPrompt, mod.style, referenceImage),
-          generateColorPalettes(fullPrompt, mod.style, referenceImage)
-        ]);
+        const logo = await generateLogo(fullPrompt, mod.style, referenceImage);
         completedCount++;
         if (onProgress) onProgress(completedCount);
         return {
           ...logo,
           prompt_for_alt: fullPrompt,
           style: mod.style,
-          palettes
+          palettes: basePalettes
         };
       } catch (err: any) {
         console.error(`Error generating variation ${mod.tag}:`, err);
@@ -459,6 +591,7 @@ export const generate25LogoVariations = async (
           errMsg.includes('Permission Denied') ||
           errMsg.includes('RESOURCE_EXHAUSTED') ||
           errMsg.includes('429') ||
+          errMsg.includes('402') ||
           errMsg.includes('403')
         ) {
           criticalError = err instanceof Error ? err : new Error(errMsg);
@@ -484,6 +617,44 @@ export const generate25LogoVariations = async (
   return results;
 };
 
+const DEFAULT_PALETTES: ColorPalette[] = [
+  {
+    themeName: "Forest Olive",
+    theoryType: "Analogous",
+    description: "An earthy, grounded palette of rich greens and warm sand that feels organic and reliable.",
+    colors: [
+      { hex: "#283618", name: "Dark Olive Green", role: "Dominant" },
+      { hex: "#606c38", name: "Olive Green", role: "Supporting" },
+      { hex: "#fefae0", name: "Cornsilk", role: "Light Neutral" },
+      { hex: "#dda15e", name: "Earth Yellow", role: "Accent" },
+      { hex: "#bc6c25", name: "Tiger's Eye", role: "Supporting" }
+    ]
+  },
+  {
+    themeName: "Nordic Frost",
+    theoryType: "Monochromatic",
+    description: "A clean, cool-toned palette that conveys modern precision, clarity, and calmness.",
+    colors: [
+      { hex: "#1e293b", name: "Slate Blue", role: "Dominant" },
+      { hex: "#3b82f6", name: "Royal Blue", role: "Supporting" },
+      { hex: "#93c5fd", name: "Ice Blue", role: "Accent" },
+      { hex: "#f1f5f9", name: "Chalk White", role: "Light Neutral" },
+      { hex: "#0f172a", name: "Midnight Navy", role: "Dark Neutral" }
+    ]
+  },
+  {
+    themeName: "Sunset Ember",
+    theoryType: "Complementary",
+    description: "High-contrast palette pairing deep twilight blue with vibrant sunset orange for premium energy.",
+    colors: [
+      { hex: "#0f172a", name: "Midnight Void", role: "Dominant" },
+      { hex: "#ea580c", name: "Cadmium Orange", role: "Accent" },
+      { hex: "#f59e0b", name: "Warm Amber", role: "Supporting" },
+      { hex: "#fafafa", name: "Pure Alabaster", role: "Light Neutral" },
+      { hex: "#334155", name: "Slate Grey", role: "Supporting" }
+    ]
+  }
+];
 
 /**
  * Generates 3 color palette variations for a brand description and selected style using color theory logic.
@@ -493,7 +664,7 @@ export const generateColorPalettes = async (
   styleId?: string, 
   referenceImage?: ReferenceImage | null
 ): Promise<ColorPalette[]> => {
-  if (!prompt.trim() && !referenceImage) return [];
+  if (!prompt.trim() && !referenceImage) return DEFAULT_PALETTES;
   try {
     const ai = new GoogleGenAI({ apiKey: getApiKey() });
     
@@ -518,117 +689,43 @@ For each palette:
 
     contentsParts.push({ text: textPrompt });
 
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: contentsParts,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                themeName: { type: Type.STRING },
-                theoryType: { type: Type.STRING },
-                description: { type: Type.STRING },
-                colors: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      hex: { type: Type.STRING },
-                      name: { type: Type.STRING },
-                      role: { type: Type.STRING }
-                    },
-                    required: ["hex", "name", "role"]
-                  }
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: contentsParts,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              themeName: { type: Type.STRING },
+              theoryType: { type: Type.STRING },
+              description: { type: Type.STRING },
+              colors: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    hex: { type: Type.STRING },
+                    name: { type: Type.STRING },
+                    role: { type: Type.STRING }
+                  },
+                  required: ["hex", "name", "role"]
                 }
-              },
-              required: ["themeName", "theoryType", "description", "colors"]
-            }
-          },
-          temperature: 0.7
-        }
-      });
-    } catch {
-      response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: contentsParts,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                themeName: { type: Type.STRING },
-                theoryType: { type: Type.STRING },
-                description: { type: Type.STRING },
-                colors: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      hex: { type: Type.STRING },
-                      name: { type: Type.STRING },
-                      role: { type: Type.STRING }
-                    },
-                    required: ["hex", "name", "role"]
-                  }
-                }
-              },
-              required: ["themeName", "theoryType", "description", "colors"]
-            }
-          },
-          temperature: 0.7
-        }
-      });
-    }
+              }
+            },
+            required: ["themeName", "theoryType", "description", "colors"]
+          }
+        },
+        temperature: 0.7
+      }
+    });
 
     const parsed = JSON.parse(response.text.trim());
-    return Array.isArray(parsed) ? parsed.slice(0, 3) : [];
-  } catch (error) {
-    console.error("Error generating color palettes:", error);
-    // Return standard fallback palettes based on generic warm/earthy theme of Logo-go if API fails
-    return [
-      {
-        themeName: "Forest Olive",
-        theoryType: "Analogous",
-        description: "An earthy, grounded palette of rich greens and warm sand that feels organic and reliable.",
-        colors: [
-          { hex: "#283618", name: "Dark Olive Green", role: "Dominant" },
-          { hex: "#606c38", name: "Olive Green", role: "Supporting" },
-          { hex: "#fefae0", name: "Cornsilk", role: "Light Neutral" },
-          { hex: "#dda15e", name: "Earth Yellow", role: "Accent" },
-          { hex: "#bc6c25", name: "Tiger's Eye", role: "Supporting" }
-        ]
-      },
-      {
-        themeName: "Nordic Frost",
-        theoryType: "Monochromatic",
-        description: "A clean, cool-toned palette that conveys modern precision, clarity, and calmness.",
-        colors: [
-          { hex: "#1e293b", name: "Slate Blue", role: "Dominant" },
-          { hex: "#3b82f6", name: "Royal Blue", role: "Supporting" },
-          { hex: "#93c5fd", name: "Ice Blue", role: "Accent" },
-          { hex: "#f1f5f9", name: "Chalk White", role: "Light Neutral" },
-          { hex: "#0f172a", name: "Midnight Navy", role: "Dark Neutral" }
-        ]
-      },
-      {
-        themeName: "Sunset Ember",
-        theoryType: "Complementary",
-        description: "High-contrast palette pairing deep twilight blue with vibrant sunset orange for premium energy.",
-        colors: [
-          { hex: "#0f172a", name: "Midnight Void", role: "Dominant" },
-          { hex: "#ea580c", name: "Cadmium Orange", role: "Accent" },
-          { hex: "#f59e0b", name: "Warm Amber", role: "Supporting" },
-          { hex: "#fafafa", name: "Pure Alabaster", role: "Light Neutral" },
-          { hex: "#334155", name: "Slate Grey", role: "Supporting" }
-        ]
-      }
-    ];
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed.slice(0, 3) : DEFAULT_PALETTES;
+  } catch {
+    // Return standard fallback palettes based on color theory if API call fails or quota is depleted
+    return DEFAULT_PALETTES;
   }
 };
