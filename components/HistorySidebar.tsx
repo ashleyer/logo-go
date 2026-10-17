@@ -573,13 +573,15 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                                   downloadScalableSvg(itemA.logo.base64, itemA.logo.mimeType, 'vector-embed', {
                                     styleName,
                                     filename: `logo-go-slot-a-${itemA.style}.svg`,
+                                    rawSvgContent: itemA.logo.svgContent,
                                   });
                                 }}
-                                className="p-1.5 text-slate-700 hover:text-amber-700 rounded-lg hover:bg-amber-50 border border-slate-200 transition-colors"
-                                title="Download Scalable Vector SVG"
-                                aria-label="Download Scalable SVG"
+                                className="flex items-center gap-1 px-2 py-1 text-amber-700 hover:text-amber-800 rounded-lg hover:bg-amber-50 border border-amber-200 transition-colors text-xs font-mono font-bold"
+                                title="Export Logo A as SVG file for better scalability"
+                                aria-label="Export Logo A as Scalable SVG"
                               >
-                                <SvgIcon className="w-4 h-4" />
+                                <SvgIcon className="w-3.5 h-3.5 text-amber-600" />
+                                <span>SVG</span>
                               </button>
                               <button
                                 onClick={() => setShareItem(itemA)}
@@ -796,13 +798,15 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                                   downloadScalableSvg(itemB.logo.base64, itemB.logo.mimeType, 'vector-embed', {
                                     styleName,
                                     filename: `logo-go-slot-b-${itemB.style}.svg`,
+                                    rawSvgContent: itemB.logo.svgContent,
                                   });
                                 }}
-                                className="p-1.5 text-slate-700 hover:text-amber-700 rounded-lg hover:bg-amber-50 border border-slate-200 transition-colors"
-                                title="Download Scalable Vector SVG"
-                                aria-label="Download Scalable SVG"
+                                className="flex items-center gap-1 px-2 py-1 text-amber-700 hover:text-amber-800 rounded-lg hover:bg-amber-50 border border-amber-200 transition-colors text-xs font-mono font-bold"
+                                title="Export Logo B as SVG file for better scalability"
+                                aria-label="Export Logo B as Scalable SVG"
                               >
-                                <SvgIcon className="w-4 h-4" />
+                                <SvgIcon className="w-3.5 h-3.5 text-amber-600" />
+                                <span>SVG</span>
                               </button>
                               <button
                                 onClick={() => setShareItem(itemB)}
@@ -1108,13 +1112,15 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                                 downloadScalableSvg(item.logo.base64, item.logo.mimeType, 'vector-embed', {
                                   styleName,
                                   filename: `logo-go-${item.style || 'custom'}.svg`,
+                                  rawSvgContent: item.logo.svgContent,
                                 });
                               }}
-                              className="p-1.5 text-slate-700 hover:text-amber-700 rounded-lg bg-white/95 hover:bg-amber-50 border border-slate-200 shadow-xs transition-colors"
-                              aria-label="Download Scalable SVG"
-                              title="Download Scalable SVG"
+                              className="flex items-center gap-1 px-2 py-1 text-amber-700 hover:text-amber-800 rounded-lg bg-white/95 hover:bg-amber-50 border border-amber-200 shadow-xs transition-colors text-[10px] font-mono font-bold"
+                              aria-label="Export logo as SVG file for better scalability"
+                              title="Export logo as SVG file for better scalability (Vector Format)"
                             >
-                              <SvgIcon className="w-4 h-4" />
+                              <SvgIcon className="w-3.5 h-3.5 text-amber-600" />
+                              <span>SVG</span>
                             </button>
                             <button
                               onClick={(e) => {
@@ -1251,13 +1257,15 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                                 downloadScalableSvg(item.logo.base64, item.logo.mimeType, 'vector-embed', {
                                   styleName,
                                   filename: `logo-go-${item.style || 'custom'}.svg`,
+                                  rawSvgContent: item.logo.svgContent,
                                 });
                               }}
-                              className="p-1.5 text-slate-600 hover:text-amber-700 rounded-lg hover:bg-amber-50 border border-slate-200 transition-colors"
-                              aria-label="Download Scalable SVG"
-                              title="Download Scalable SVG"
+                              className="flex items-center gap-1 px-2 py-1 text-amber-700 hover:text-amber-800 rounded-lg hover:bg-amber-50 border border-amber-200 transition-colors text-xs font-mono font-bold"
+                              aria-label="Export logo as SVG file for better scalability"
+                              title="Export logo as SVG file for better scalability (Vector Format)"
                             >
-                              <SvgIcon className="w-4 h-4" />
+                              <SvgIcon className="w-3.5 h-3.5 text-amber-600" />
+                              <span>SVG</span>
                             </button>
                             <button
                               onClick={(e) => {

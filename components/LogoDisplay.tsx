@@ -204,7 +204,8 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
                 onClick={() => handleDownloadSvg(selectedSvgMode)}
                 disabled={isExporting}
                 className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white border border-amber-600 text-[11px] font-mono font-bold px-3 py-1.5 rounded-lg transition-all duration-200 shadow-2xs hover:shadow-xs active:scale-95 disabled:opacity-50"
-                title="Export generated logo as a high-quality SVG file for Figma, Illustrator, Canva & web"
+                title="Export generated logo as an SVG file for better scalability"
+                aria-label="Export generated logo as SVG file for better scalability"
               >
                 <SvgIcon className="w-3.5 h-3.5 text-white" aria-hidden="true" />
                 <span>Export SVG</span>
@@ -450,7 +451,8 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
                 onClick={() => handleDownloadSvg(selectedSvgMode)}
                 disabled={isExporting}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-[10px] font-mono font-bold transition-all shadow-xs"
-                title="Export logo as a scalable vector SVG file for high-quality usage"
+                title="Export logo as an SVG file for better scalability"
+                aria-label="Export logo as SVG file for better scalability"
               >
                 <SvgIcon className="w-3.5 h-3.5 text-slate-950" />
                 <span>Export SVG</span>
@@ -483,26 +485,30 @@ export const LogoDisplay: React.FC<LogoDisplayProps> = ({ logo }) => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {/* Primary SVG Export Button */}
+            {/* Primary SVG Export Button for Scalability */}
             <button
               type="button"
               onClick={() => handleDownloadSvg(selectedSvgMode)}
               disabled={isExporting}
-              className="group flex items-center justify-between bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-mono font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-xs hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-50"
-              title="Export the generated logo as a scalable vector SVG file for high-quality usage in Figma, Illustrator, Canva, web & print"
+              className="group flex items-center justify-between bg-gradient-to-r from-amber-500 via-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-mono font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-xs hover:shadow-md active:scale-[0.98] transition-all duration-200 disabled:opacity-50 border border-amber-600/30"
+              title="Export the generated logo as a scalable vector SVG file for infinite resolution in Figma, Illustrator, Canva, web & print"
+              aria-label="Export generated logo as SVG file for better scalability"
             >
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-white/20 rounded-lg">
                   <SvgIcon className="w-4 h-4 text-white" aria-hidden="true" />
                 </div>
                 <div className="text-left">
-                  <div className="leading-tight font-bold">Export as SVG</div>
+                  <div className="leading-tight font-bold flex items-center gap-1.5">
+                    <span>Export as SVG</span>
+                    <span className="text-[9px] bg-white/25 text-white px-1.5 py-0.5 rounded font-mono font-semibold">Vector</span>
+                  </div>
                   <div className="text-[9px] text-amber-100 font-sans font-normal">
-                    {selectedSvgMode === 'vector-paths' ? 'Pure Vector Paths' : 'Scalable Vector SVG'}
+                    {selectedSvgMode === 'vector-paths' ? 'Pure Vector Paths' : 'Infinite Scalability (.svg)'}
                   </div>
                 </div>
               </div>
-              <DownloadIcon className="w-4 h-4 text-white/80 group-hover:translate-y-0.5 transition-transform" />
+              <DownloadIcon className="w-4 h-4 text-white/90 group-hover:translate-y-0.5 transition-transform" />
             </button>
 
             {/* High-Resolution PNG Export Button */}
