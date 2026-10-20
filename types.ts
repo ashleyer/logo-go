@@ -26,6 +26,7 @@ export interface LogoData {
   palettes?: ColorPalette[];
   referenceImage?: ReferenceImage | null;
   svgContent?: string;
+  isProcedural?: boolean;
 }
 
 export interface VideoData {

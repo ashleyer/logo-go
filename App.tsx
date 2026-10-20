@@ -21,6 +21,7 @@ export default function App() {
   const [isLoadingLogo, setIsLoadingLogo] = useState(false);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [infoNotice, setInfoNotice] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -169,6 +170,13 @@ export default function App() {
       const logoData = await generateLogo(prompt, selectedStyle, referenceImage);
       setLogo(logoData);
       setVariations((prev) => [logoData, ...prev.slice(0, 24)]);
+      if (logoData.isProcedural) {
+        setInfoNotice(
+          "Created with built-in Vector Design Engine. When hosting on Vercel, configure GEMINI_API_KEY in Project Settings → Environment Variables to enable Gemini AI neural generation."
+        );
+      } else {
+        setInfoNotice(null);
+      }
 
       const newItemId = Date.now().toString();
       const newItem: HistoryItem = {
@@ -203,6 +211,7 @@ export default function App() {
     if (!prompt.trim() && !referenceImage) return;
     setIsLoadingLogo(true);
     setError(null);
+    setInfoNotice(null);
     setVideoError(null);
     setLogo(null);
     setVideo(null);
@@ -217,12 +226,20 @@ export default function App() {
       );
 
       if (generatedVariations.length === 0) {
-        throw new Error('Failed to generate logo variations. Please try again.');
+        throw new Error('No logo variations could be generated. Please try again with a descriptive prompt.');
       }
 
       setVariations(generatedVariations);
       const firstLogo = generatedVariations[0];
       setLogo(firstLogo);
+
+      if (firstLogo?.isProcedural) {
+        setInfoNotice(
+          "Created 25 logo variations using built-in Vector Design Engine. Note: If you deployed to Vercel, configure GEMINI_API_KEY in your Vercel Project Settings → Environment Variables to enable Google Gemini AI neural generation."
+        );
+      } else {
+        setInfoNotice(null);
+      }
 
       const now = Date.now();
       const newItems: HistoryItem[] = generatedVariations.map((logoData, idx) => {
@@ -313,26 +330,72 @@ export default function App() {
           onOpenHistory={() => setIsHistoryOpen(true)}
         />
 
+        {infoNotice && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-950 p-4 rounded-xl mb-6 max-w-4xl mx-auto shadow-xs" role="status">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <span className="text-emerald-600 text-base">✨</span>
+                <div>
+                  <p className="font-mono font-bold text-xs text-emerald-900 uppercase tracking-wide">Design Engine Notice</p>
+                  <p className="text-xs text-emerald-800 font-sans mt-0.5 leading-relaxed">{infoNotice}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInfoNotice(null)}
+                className="text-emerald-700 hover:text-emerald-900 text-xs font-mono font-bold px-2 py-1 rounded-md hover:bg-emerald-100 transition-colors"
+                aria-label="Dismiss notice"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-xl mb-6 max-w-4xl mx-auto shadow-xs" role="alert">
-            <div className="flex items-start">
-              <span className="text-rose-500 mr-3 text-lg">⚠️</span>
-              <div className="flex-1">
-                <p className="font-mono font-bold text-sm">System Notice</p>
-                <p className="text-xs text-rose-800 font-sans mt-0.5 leading-relaxed">{error.message}</p>
-                {(error.message.includes('prepayment') || error.message.includes('credits') || error.message.includes('ai.studio') || error.message.includes('Permission') || error.message.includes('403') || error.message.includes('402') || error.message.includes('RESOURCE_EXHAUSTED')) && (
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    <a 
-                      href="https://ai.studio/projects" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-mono font-bold transition-colors shadow-2xs"
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <span className="text-rose-500 text-lg">⚠️</span>
+                <div className="flex-1">
+                  <p className="font-mono font-bold text-sm">System Notice</p>
+                  <p className="text-xs text-rose-800 font-sans mt-0.5 leading-relaxed">{error.message}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setError(null)}
+                      className="px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg text-xs font-mono font-bold transition-colors"
                     >
-                      <span>Google AI Studio Projects & Keys ↗</span>
-                    </a>
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerate25Variations()}
+                      className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-mono font-bold transition-colors shadow-2xs"
+                    >
+                      Retry Variations
+                    </button>
+                    {(error.message.includes('prepayment') || error.message.includes('credits') || error.message.includes('ai.studio') || error.message.includes('Permission') || error.message.includes('403') || error.message.includes('402') || error.message.includes('RESOURCE_EXHAUSTED')) && (
+                      <a 
+                        href="https://ai.studio/projects" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-50 text-rose-800 rounded-lg text-xs font-mono font-bold transition-colors shadow-2xs"
+                      >
+                        <span>Google AI Studio Projects & Keys ↗</span>
+                      </a>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="text-rose-400 hover:text-rose-700 text-sm font-bold p-1"
+                aria-label="Close error"
+              >
+                ✕
+              </button>
             </div>
           </div>
         )}

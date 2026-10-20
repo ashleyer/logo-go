@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { LogoData, ColorPalette, ReferenceImage, VideoData, LogoStyleId } from "../types";
+import { generateProceduralVectorLogo, generateProceduralVectorVariations } from "../utils/proceduralLogoGenerator";
 
 export const getApiKey = (): string => {
   if (typeof window !== 'undefined') {
@@ -12,12 +13,13 @@ export const getApiKey = (): string => {
 
     // 2. Check localStorage, cleaning up obsolete/depleted keys
     try {
-      const stored = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GOOGLE_API_KEY');
+      const stored = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GOOGLE_API_KEY') || localStorage.getItem('VITE_GEMINI_API_KEY');
       if (stored) {
         const clean = stored.trim();
         if (clean === 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
           localStorage.removeItem('GEMINI_API_KEY');
           localStorage.removeItem('GOOGLE_API_KEY');
+          localStorage.removeItem('VITE_GEMINI_API_KEY');
         } else if (clean.length > 5) {
           return clean;
         }
@@ -30,10 +32,20 @@ export const getApiKey = (): string => {
   // 3. Check environment safely
   try {
     const envKey = typeof process !== 'undefined' && process.env
-      ? (process.env.GEMINI_API_KEY || process.env.API_KEY || (process.env as any).GOOGLE_API_KEY)
+      ? (process.env.GEMINI_API_KEY || process.env.API_KEY || (process.env as any).GOOGLE_API_KEY || (process.env as any).VITE_GEMINI_API_KEY)
       : undefined;
     if (envKey && envKey.trim() && envKey !== 'undefined' && envKey.trim() !== 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
       return envKey.trim();
+    }
+  } catch {
+    // ignore
+  }
+
+  // 4. Check Vite client environment variables
+  try {
+    const metaKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.VITE_API_KEY || (import.meta as any).env?.GEMINI_API_KEY;
+    if (metaKey && typeof metaKey === 'string' && metaKey.trim() && metaKey.trim() !== 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
+      return metaKey.trim();
     }
   } catch {
     // ignore
@@ -188,7 +200,8 @@ export const generateLogo = async (
 ): Promise<LogoData> => {
   const currentKey = getApiKey();
   if (!currentKey) {
-    throw new Error("No Gemini API key found. Please ensure GEMINI_API_KEY is configured in your project settings.");
+    console.warn("No Gemini API key detected; rendering with Procedural Vector Design Engine.");
+    return await generateProceduralVectorLogo(prompt, styleId, referenceImage);
   }
   const ai = new GoogleGenAI({ apiKey: currentKey });
 
@@ -280,28 +293,33 @@ export const generateLogo = async (
     // If no inlineData, attempt SVG vector fallback
     return await generateSvgVectorLogo(prompt, styleId, referenceImage, ai);
   } catch (error: any) {
-    console.error("Logo generation error:", error);
-    const errStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
-    const msg = (error?.message || "").toLowerCase();
-    const statusCode = error?.status || error?.code || error?.error?.code;
+    console.warn("Logo generation error, attempting procedural vector fallback:", error);
+    try {
+      return await generateProceduralVectorLogo(prompt, styleId, referenceImage);
+    } catch (procErr) {
+      console.error("Procedural vector logo generation error:", procErr);
+      const errStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
+      const msg = (error?.message || "").toLowerCase();
+      const statusCode = error?.status || error?.code || error?.error?.code;
 
-    if (statusCode === 403 || errStr.includes('403') || errStr.includes('PERMISSION_DENIED') || msg.includes('permission')) {
-      throw new Error("API Permission Denied. Please ensure your Gemini API key has access to image generation models.");
+      if (statusCode === 403 || errStr.includes('403') || errStr.includes('PERMISSION_DENIED') || msg.includes('permission')) {
+        throw new Error("API Permission Denied. Please ensure your Gemini API key has access to image generation models.");
+      }
+      if (
+        statusCode === 402 || 
+        statusCode === 429 || 
+        errStr.includes('402') || 
+        errStr.includes('429') || 
+        errStr.includes('RESOURCE_EXHAUSTED') || 
+        msg.includes('quota') || 
+        msg.includes('prepayment') || 
+        msg.includes('depleted') || 
+        msg.includes('credit')
+      ) {
+        throw new Error("Your Google AI Studio prepayment credits are depleted. Please visit https://ai.studio/projects to manage billing and add credits.");
+      }
+      throw error;
     }
-    if (
-      statusCode === 402 || 
-      statusCode === 429 || 
-      errStr.includes('402') || 
-      errStr.includes('429') || 
-      errStr.includes('RESOURCE_EXHAUSTED') || 
-      msg.includes('quota') || 
-      msg.includes('prepayment') || 
-      msg.includes('depleted') || 
-      msg.includes('credit')
-    ) {
-      throw new Error("Your Google AI Studio prepayment credits are depleted. Please visit https://ai.studio/projects to manage billing and add credits.");
-    }
-    throw error;
   }
 };
 
@@ -571,6 +589,13 @@ export const generate25LogoVariations = async (
     basePalettes = DEFAULT_PALETTES;
   }
 
+  // Check if API key is present; if not, immediately generate procedural variations
+  const currentKey = getApiKey();
+  if (!currentKey) {
+    console.warn("No Gemini API key detected; generating 25 variations with Procedural Vector Design Engine.");
+    return await generateProceduralVectorVariations(prompt, baseStyle, referenceImage, basePalettes, onProgress);
+  }
+
   for (let i = 0; i < variationModifiers.length; i += BATCH_SIZE) {
     if (criticalError) break;
     const chunk = variationModifiers.slice(i, i + BATCH_SIZE);
@@ -589,15 +614,7 @@ export const generate25LogoVariations = async (
       } catch (err: any) {
         console.error(`Error generating variation ${mod.tag}:`, err);
         const errMsg = err?.message || String(err);
-        if (
-          errMsg.includes('depleted') ||
-          errMsg.includes('prepayment') ||
-          errMsg.includes('Permission Denied') ||
-          errMsg.includes('RESOURCE_EXHAUSTED') ||
-          errMsg.includes('429') ||
-          errMsg.includes('402') ||
-          errMsg.includes('403')
-        ) {
+        if (!criticalError) {
           criticalError = err instanceof Error ? err : new Error(errMsg);
         }
         return null;
@@ -610,12 +627,25 @@ export const generate25LogoVariations = async (
     });
 
     if (criticalError && results.length === 0) {
-      throw criticalError;
+      break;
     }
   }
 
-  if (results.length === 0 && criticalError) {
-    throw criticalError;
+  if (results.length === 0) {
+    console.warn("Neural generation returned 0 logos, falling back to 25 procedural vector variations.");
+    const proceduralLogos = await generateProceduralVectorVariations(
+      prompt,
+      baseStyle,
+      referenceImage,
+      basePalettes,
+      onProgress
+    );
+    if (proceduralLogos.length > 0) {
+      return proceduralLogos;
+    }
+    if (criticalError) {
+      throw criticalError;
+    }
   }
 
   return results;
