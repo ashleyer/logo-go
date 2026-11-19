@@ -187,13 +187,32 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                   disabled={isValidating}
                   className="w-full px-3.5 py-2.5 pr-20 bg-white border border-slate-300 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-1 text-[11px] font-mono text-slate-500 hover:text-slate-800 transition-colors"
-                >
-                  {showKey ? 'Hide' : 'Show'}
-                </button>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {typeof navigator !== 'undefined' && navigator.clipboard && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          if (text) setKeyInput(text.trim());
+                        } catch {
+                          // ignore clipboard read permission error
+                        }
+                      }}
+                      className="px-2 py-1 text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors"
+                      title="Paste from clipboard"
+                    >
+                      Paste
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="px-2 py-1 text-[11px] font-mono text-slate-500 hover:text-slate-800 transition-colors"
+                  >
+                    {showKey ? 'Hide' : 'Show'}
+                  </button>
+                </div>
               </div>
             </div>
 
