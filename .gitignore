@@ -1,5 +1,14 @@
-# Logs
-logs
+# Dependencies & Package Managers
+node_modules/
+node_modules
+/.pnp
+.pnp.js
+.yarn/
+package-lock.json.bak
+bun.lockb
+
+# Logs & Diagnostics
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,28 +16,71 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Build & Compilation Outputs
+dist/
+dist-ssr/
+build/
+out/
+.vite/
 *.local
 
-# Editor directories and files
+# Environment variables & secrets (CRITICAL: Never commit secrets)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+*.key
+*.pem
+*.cert
+*.crt
+*.secret
+*secret*
+secrets/
+credentials.json
+service-account*.json
+*-credentials.json
+
+# Gemini & AI Studio Specific Secrets, Tokens & Files
+*gemini*.key
+*gemini*.token
+*gemini*.env
+*gemini*secret*
+.gemini/
+.gemini*
+gemini-key*
+gemini_key*
+.aistudio/
+aistudio/
+
+# History, Backups & Temporary files
+.history/
+*.history
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*~
+*.tmp
+*.temp
+
+# User Uploads & Transient Media Assets
+public/assets/
+assets/aistudio/
+
+# IDE & OS Files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
+ehthumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
-
-.vscode/
-
-# Environment and secrets
-.env
-.env.*
-!.env.example
-.history/
-.aistudio/
-public/assets/
