@@ -94,7 +94,7 @@ export const removeStoredApiKey = (): void => {
 export const validateApiKey = async (testKey: string): Promise<{ valid: boolean; error?: string }> => {
   const clean = testKey.trim();
   if (!clean || clean.length < 15) {
-    return { valid: false, error: 'Please enter a valid Gemini API key (typically 39 characters).' };
+    return { valid: false, error: 'Please enter a valid Gemini API key.' };
   }
   try {
     const ai = new GoogleGenAI({ apiKey: clean });

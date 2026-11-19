@@ -47,7 +47,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
     e.preventDefault();
     const cleanKey = keyInput.trim();
     if (!cleanKey) {
-      setStatusMessage({ type: 'error', text: 'Please enter a Gemini API key starting with AIzaSy...' });
+      setStatusMessage({ type: 'error', text: 'Please enter your Gemini API key.' });
       return;
     }
 
@@ -183,7 +183,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
                   type={showKey ? 'text' : 'password'}
                   value={keyInput}
                   onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder="AIzaSy..."
+                  placeholder="Paste your Gemini API key (e.g. AQ... or AIza...)"
                   disabled={isValidating}
                   className="w-full px-3.5 py-2.5 pr-20 bg-white border border-slate-300 rounded-xl font-mono text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
                 />
