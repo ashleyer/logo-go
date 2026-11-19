@@ -47,6 +47,75 @@ export const getApiKey = (): string => {
   return '';
 };
 
+export const hasConfiguredApiKey = (): boolean => {
+  return getApiKey().length > 10;
+};
+
+export const getKeySource = (): 'environment' | 'storage' | 'none' => {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('VITE_GEMINI_API_KEY');
+      if (stored && stored.trim().length > 10) return 'storage';
+    } catch {
+      // ignore
+    }
+    const winKey = (window as any).__GEMINI_API_KEY__;
+    if (winKey && typeof winKey === 'string' && winKey.trim().length > 10) return 'environment';
+  }
+  try {
+    const envKey = typeof process !== 'undefined' && process.env ? (process.env.GEMINI_API_KEY || (process.env as any).VITE_GEMINI_API_KEY) : undefined;
+    if (envKey && envKey.trim().length > 10) return 'environment';
+    const metaKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    if (metaKey && typeof metaKey === 'string' && metaKey.trim().length > 10) return 'environment';
+  } catch {
+    // ignore
+  }
+  return 'none';
+};
+
+export const setStoredApiKey = (key: string): void => {
+  if (typeof window !== 'undefined') {
+    const clean = key.trim();
+    localStorage.setItem('GEMINI_API_KEY', clean);
+    localStorage.setItem('VITE_GEMINI_API_KEY', clean);
+    (window as any).__GEMINI_API_KEY__ = clean;
+  }
+};
+
+export const removeStoredApiKey = (): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('GEMINI_API_KEY');
+    localStorage.removeItem('VITE_GEMINI_API_KEY');
+    localStorage.removeItem('GOOGLE_API_KEY');
+    delete (window as any).__GEMINI_API_KEY__;
+  }
+};
+
+export const validateApiKey = async (testKey: string): Promise<{ valid: boolean; error?: string }> => {
+  const clean = testKey.trim();
+  if (!clean || clean.length < 15) {
+    return { valid: false, error: 'Please enter a valid Gemini API key (typically 39 characters).' };
+  }
+  try {
+    const ai = new GoogleGenAI({ apiKey: clean });
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: 'Respond with the single word "OK"',
+    });
+    if (response?.text) {
+      return { valid: true };
+    }
+    return { valid: false, error: 'No text returned from Gemini API verification.' };
+  } catch (err: any) {
+    console.error('API Key validation failed:', err);
+    const msg = err?.message || String(err);
+    if (msg.includes('API_KEY_INVALID') || msg.includes('400') || msg.includes('invalid')) {
+      return { valid: false, error: 'Invalid API Key. Please verify the key at aistudio.google.com/apikey.' };
+    }
+    return { valid: false, error: msg };
+  }
+};
+
 /**
  * Generates a list of prompt suggestions to enhance the user's initial idea.
  */

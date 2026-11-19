@@ -4,7 +4,8 @@ import { LogoGenerator } from './components/LogoGenerator';
 import { VideoGenerator } from './components/VideoGenerator';
 import { HistorySidebar } from './components/HistorySidebar';
 import { ShareModal } from './components/ShareModal';
-import { generateLogo, generateVideo, generatePromptSuggestions, generate25LogoVariations } from './services/geminiService';
+import { ApiKeyModal } from './components/ApiKeyModal';
+import { generateLogo, generateVideo, generatePromptSuggestions, generate25LogoVariations, hasConfiguredApiKey } from './services/geminiService';
 import { LogoData, VideoData, ApiError, LogoStyleId, HistoryItem, ReferenceImage } from './types';
 import { ShareIcon, HistoryIcon } from './components/icons';
 import { useDebounce } from './hooks/useDebounce';
@@ -30,12 +31,46 @@ export default function App() {
   // History / Session Creations Gallery states
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(() => hasConfiguredApiKey());
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
 
   // Authentication & Cloud Sync
   const { user, isLoading: isLoadingAuth, signIn, signOut } = useAuth();
   const [cloudSavedCount, setCloudSavedCount] = useState(0);
+
+  const handleKeyUpdated = useCallback(() => {
+    const isConfigured = hasConfiguredApiKey();
+    setHasApiKey(isConfigured);
+    if (isConfigured) {
+      setInfoNotice(null);
+    }
+    if (prompt.trim()) {
+      generatePromptSuggestions(prompt)
+        .then((suggs) => {
+          if (suggs.length > 0) setSuggestions(suggs);
+        })
+        .catch(() => {});
+    }
+  }, [prompt]);
+
+  const handleSignInWithNotice = useCallback(async () => {
+    try {
+      setError(null);
+      await signIn();
+    } catch (err: any) {
+      const msg = err?.message || String(err);
+      if (msg.includes('unauthorized-domain') || msg.includes('auth/unauthorized-domain')) {
+        const currentDomain = typeof window !== 'undefined' ? window.location.hostname : 'your Vercel domain';
+        setError({
+          message: `Google Sign-In on "${currentDomain}" requires authorizing this domain in Firebase. In Firebase Console → Authentication → Settings → Authorized domains, add "${currentDomain}". In the meantime, all created logos are saved safely in your browser gallery!`,
+        });
+      } else if (!msg.includes('popup-closed-by-user')) {
+        setError({ message: msg });
+      }
+    }
+  }, [signIn]);
 
   // Load history from IndexedDB on mount
   useEffect(() => {
@@ -324,10 +359,12 @@ export default function App() {
         <Header 
           user={user}
           isLoadingAuth={isLoadingAuth}
-          onSignIn={signIn}
+          onSignIn={handleSignInWithNotice}
           onSignOut={signOut}
           cloudSavedCount={cloudSavedCount}
           onOpenHistory={() => setIsHistoryOpen(true)}
+          hasApiKey={hasApiKey}
+          onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         />
 
         {infoNotice && (
@@ -338,6 +375,15 @@ export default function App() {
                 <div>
                   <p className="font-mono font-bold text-xs text-emerald-900 uppercase tracking-wide">Design Engine Notice</p>
                   <p className="text-xs text-emerald-800 font-sans mt-0.5 leading-relaxed">{infoNotice}</p>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsApiKeyModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-mono font-bold transition-colors shadow-2xs"
+                    >
+                      <span>🔑 Configure Gemini API Key</span>
+                    </button>
+                  </div>
                 </div>
               </div>
               <button
@@ -374,6 +420,13 @@ export default function App() {
                       className="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-mono font-bold transition-colors shadow-2xs"
                     >
                       Retry Variations
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsApiKeyModalOpen(true)}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-mono font-bold transition-colors shadow-2xs"
+                    >
+                      🔑 Set Gemini API Key
                     </button>
                     {(error.message.includes('prepayment') || error.message.includes('credits') || error.message.includes('ai.studio') || error.message.includes('Permission') || error.message.includes('403') || error.message.includes('402') || error.message.includes('RESOURCE_EXHAUSTED')) && (
                       <a 
@@ -482,6 +535,12 @@ export default function App() {
           onClose={() => setIsShareModalOpen(false)}
           galleryCount={history.length}
           items={history}
+        />
+
+        <ApiKeyModal
+          isOpen={isApiKeyModalOpen}
+          onClose={() => setIsApiKeyModalOpen(false)}
+          onKeyUpdated={handleKeyUpdated}
         />
       </div>
 

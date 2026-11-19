@@ -58,37 +58,92 @@ export const svgToPngBase64 = (svgString: string, size = 1024): Promise<string> 
 };
 
 /**
- * Extracts brand name and monogram letters from prompt.
+ * Extracts brand name, monogram letters, and tagline from structured or freeform prompts.
  */
 export const extractBrandInfo = (prompt: string): { name: string; initials: string; tag: string } => {
-  const clean = prompt
-    .replace(/describe your business[^:]*:/gi, '')
-    .replace(/mission statement[^:]*:/gi, '')
-    .replace(/colors:[^,;]+/gi, '')
-    .replace(/impression:[^,;]+/gi, '')
-    .replace(/[^\w\s-]/g, ' ')
-    .trim();
+  // 1. Check for explicit Person / Name / Initials pattern
+  const personMatch = prompt.match(/(?:person(?:\s*[\/&]\s*initials)?|initials|person's?\s*name|name)\s*:\s*["']?([^"',;\n]+)["']?/i);
+  const businessMatch = prompt.match(/(?:business(?:\s*[\/&]\s*(?:organization|group))?|company|brand|organization|group)\s*:\s*["']?([^"',;\n]+)["']?/i);
+  const impressionMatch = prompt.match(/(?:impression(?:\s*[\/&]\s*effect)?|characteristics)\s*:\s*["']?([^"',;\n]+)["']?/i);
 
-  const words = clean
-    .split(/\s+/)
-    .filter((w) => w.length > 0 && !['a', 'an', 'the', 'for', 'and', 'with', 'logo', 'emblem', 'icon', 'design', 'vector'].includes(w.toLowerCase()));
-
-  let name = 'BRAND';
-  let initials = 'B';
-  let tag = 'EST. 2026';
-
-  if (words.length === 1) {
-    name = words[0].toUpperCase();
-    initials = name.slice(0, 2);
-  } else if (words.length >= 2) {
-    name = `${words[0]} ${words[1]}`.toUpperCase();
-    initials = `${words[0][0]}${words[1][0]}`.toUpperCase();
-    if (words.length >= 3) {
-      tag = words.slice(2, 4).join(' ').toUpperCase();
+  let targetEntity = '';
+  if (personMatch && personMatch[1]?.trim()) {
+    targetEntity = personMatch[1].trim();
+  } else if (businessMatch && businessMatch[1]?.trim()) {
+    targetEntity = businessMatch[1].trim();
+  } else {
+    // Check for quoted name or monogram like "A.R." or "Acme Corp"
+    const quoteMatch = prompt.match(/["']([A-Za-z0-9\s.&-]{1,30})["']/);
+    if (quoteMatch && quoteMatch[1]?.trim()) {
+      targetEntity = quoteMatch[1].trim();
     }
   }
 
-  return { name: name.slice(0, 20), initials: initials.slice(0, 3), tag: tag.slice(0, 24) };
+  // If no structured match found, clean out form labels and descriptors from prompt
+  if (!targetEntity) {
+    const clean = prompt
+      .replace(/describe your business[^:]*:/gi, '')
+      .replace(/business\s*[\/&]\s*organization\s*[\/&]\s*group[^:]*:/gi, '')
+      .replace(/business[^:]*:/gi, '')
+      .replace(/person\s*[\/&]\s*initials[^:]*:/gi, '')
+      .replace(/person[^:]*:/gi, '')
+      .replace(/initials[^:]*:/gi, '')
+      .replace(/name[^:]*:/gi, '')
+      .replace(/mission statement[^:]*:/gi, '')
+      .replace(/mission\s*[\/&]\s*goals[^:]*:/gi, '')
+      .replace(/mission[^:]*:/gi, '')
+      .replace(/impression\s*[\/&]\s*effect[^:]*:/gi, '')
+      .replace(/impression:[^,;]+/gi, '')
+      .replace(/characteristics:[^,;]+/gi, '')
+      .replace(/colors\s*[\/&]\s*choices[^:]*:/gi, '')
+      .replace(/colors:[^,;]+/gi, '')
+      .replace(/symbol:[^,;]+/gi, '')
+      .trim();
+
+    targetEntity = clean;
+  }
+
+  // Extract letters & clean words
+  const lettersOnly = targetEntity.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const words = targetEntity
+    .replace(/[^\w\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 0 && !['a', 'an', 'the', 'for', 'and', 'with', 'person', 'initials', 'business', 'impression', 'describe'].includes(w.toLowerCase()));
+
+  let initials = 'AR';
+  let name = 'BRAND';
+  let tag = 'EST. 2026';
+
+  if (impressionMatch && impressionMatch[1]?.trim()) {
+    const rawImp = impressionMatch[1].trim().replace(/[^\w\s-]/g, ' ').split(/\s+/).filter(Boolean);
+    if (rawImp.length > 0) {
+      tag = rawImp.slice(0, 2).join(' ').toUpperCase();
+    }
+  }
+
+  // If the entity is a short monogram/initials like "A.R.", "AR", "J.D.", "ABC", "K"
+  if (lettersOnly.length >= 1 && lettersOnly.length <= 4 && (words.length <= 2 || targetEntity.includes('.'))) {
+    initials = lettersOnly.slice(0, 3);
+    name = targetEntity.replace(/["']/g, '').trim().toUpperCase();
+  } else if (words.length === 1) {
+    name = words[0].toUpperCase();
+    initials = words[0].slice(0, 2).toUpperCase();
+  } else if (words.length >= 2) {
+    name = `${words[0]} ${words[1]}`.toUpperCase();
+    initials = `${words[0][0]}${words[1][0]}`.toUpperCase();
+    if (!impressionMatch && words.length >= 3) {
+      tag = words.slice(2, 4).join(' ').toUpperCase();
+    }
+  } else if (lettersOnly.length > 0) {
+    initials = lettersOnly.slice(0, 2);
+    name = lettersOnly;
+  }
+
+  return {
+    name: name.slice(0, 20),
+    initials: initials.slice(0, 3),
+    tag: tag.slice(0, 24),
+  };
 };
 
 /**

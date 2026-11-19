@@ -142,10 +142,22 @@
    npm run build
    ```
 
-6. **Start Production Server**:
-   ```bash
-   npm run start
-   ```
+---
+
+## 🚀 Deploying to Vercel
+
+When deploying to Vercel:
+
+1. **Framework Preset**: Select **Vite** (Vercel auto-detects this via `vercel.json`).
+2. **Environment Variables**:
+   In your Vercel Dashboard → **Project Settings** → **Environment Variables**, add:
+   - **Key**: `VITE_GEMINI_API_KEY` *(or `GEMINI_API_KEY`)*
+   - **Value**: Your Gemini API Key from [Google AI Studio](https://aistudio.google.com/apikey)
+3. **In-App Key Setup (Zero-Redeploy)**:
+   You can also click the **"Set Gemini Key"** button directly in the app header to paste and verify your API key in your browser session.
+4. **Firebase Google Sign-In**:
+   To enable cloud syncing on Vercel, add your Vercel domain (`your-app.vercel.app`) to your Firebase Console under:
+   **Authentication** → **Settings** → **Authorized domains**.
 
 ---
 

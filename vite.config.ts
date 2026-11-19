@@ -26,11 +26,7 @@ export default defineConfig(({ mode }) => {
         'process.env.API_KEY': JSON.stringify(apiKey),
         'process.env.GEMINI_API_KEY': JSON.stringify(apiKey),
         'process.env.GOOGLE_API_KEY': JSON.stringify(apiKey),
-        'process.env': JSON.stringify({
-          API_KEY: apiKey,
-          GEMINI_API_KEY: apiKey,
-          GOOGLE_API_KEY: apiKey,
-        }),
+        'process.env.VITE_GEMINI_API_KEY': JSON.stringify(apiKey),
         'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(apiKey)
       },
       resolve: {
