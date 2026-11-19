@@ -7,22 +7,15 @@ export const getApiKey = (): string => {
   if (typeof window !== 'undefined') {
     // 1. Check window-injected key from Vite transform
     const winKey = (window as any).__GEMINI_API_KEY__;
-    if (winKey && typeof winKey === 'string' && winKey.trim() && winKey !== 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
+    if (winKey && typeof winKey === 'string' && winKey.trim().length > 10) {
       return winKey.trim();
     }
 
-    // 2. Check localStorage, cleaning up obsolete/depleted keys
+    // 2. Check localStorage
     try {
       const stored = localStorage.getItem('GEMINI_API_KEY') || localStorage.getItem('GOOGLE_API_KEY') || localStorage.getItem('VITE_GEMINI_API_KEY');
-      if (stored) {
-        const clean = stored.trim();
-        if (clean === 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
-          localStorage.removeItem('GEMINI_API_KEY');
-          localStorage.removeItem('GOOGLE_API_KEY');
-          localStorage.removeItem('VITE_GEMINI_API_KEY');
-        } else if (clean.length > 5) {
-          return clean;
-        }
+      if (stored && stored.trim().length > 10) {
+        return stored.trim();
       }
     } catch {
       // ignore
@@ -34,7 +27,7 @@ export const getApiKey = (): string => {
     const envKey = typeof process !== 'undefined' && process.env
       ? (process.env.GEMINI_API_KEY || process.env.API_KEY || (process.env as any).GOOGLE_API_KEY || (process.env as any).VITE_GEMINI_API_KEY)
       : undefined;
-    if (envKey && envKey.trim() && envKey !== 'undefined' && envKey.trim() !== 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
+    if (envKey && typeof envKey === 'string' && envKey.trim().length > 10 && envKey.trim() !== 'undefined') {
       return envKey.trim();
     }
   } catch {
@@ -44,7 +37,7 @@ export const getApiKey = (): string => {
   // 4. Check Vite client environment variables
   try {
     const metaKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.VITE_API_KEY || (import.meta as any).env?.GEMINI_API_KEY;
-    if (metaKey && typeof metaKey === 'string' && metaKey.trim() && metaKey.trim() !== 'AIzaSyALenekFs3FD13n3PhH7VWH5sC-dKba0WE') {
+    if (metaKey && typeof metaKey === 'string' && metaKey.trim().length > 10 && metaKey.trim() !== 'undefined') {
       return metaKey.trim();
     }
   } catch {
